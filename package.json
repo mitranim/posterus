@@ -1,0 +1,55 @@
+{
+  "name": "posterus",
+  "version": "0.0.1",
+  "main": "dist/posterus-dist.js",
+  "description": "Composable async primitives (futures) with true cancelation",
+  "keywords": [
+    "future",
+    "promise",
+    "async",
+    "asynchronous",
+    "composable",
+    "cancelable",
+    "abortable"
+  ],
+  "authors": [
+    "Nelo Mitranim <me@mitranim.com>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mitranim/posterus.git"
+  },
+  "homepage": "https://github.com/Mitranim/posterus",
+  "license": "MIT",
+  "scripts": {
+    "start": "gulp",
+    "test": "node test/test",
+    "prepublish": "gulp build"
+  },
+  "dependencies": {
+    "fastqueue": "^0.1.0"
+  },
+  "devDependencies": {
+    "babel-eslint": "7.2.3",
+    "babel-plugin-check-es2015-constants": "6.22.0",
+    "babel-plugin-transform-es2015-block-scoping": "6.24.1",
+    "babel-plugin-transform-es2015-classes": "6.24.1",
+    "babel-plugin-transform-es2015-spread": "6.22.0",
+    "babel-plugin-transform-es2015-template-literals": "6.22.0",
+    "chai": "3.5.0",
+    "chai-as-promised": "6.0.0",
+    "chalk": "1.1.3",
+    "del": "2.2.2",
+    "eslint": "3.19.0",
+    "eslint-plugin-eslint-plugin": "0.7.2",
+    "eslint-plugin-node": "4.2.2",
+    "eslint_d": "4.2.5",
+    "gulp": "gulpjs/gulp#4.0",
+    "gulp-babel": "6.1.2",
+    "gulp-eslint": "3.0.1",
+    "gulp-load-plugins": "1.5.0",
+    "gulp-rename": "1.2.2",
+    "gulp-uglify": "2.1.2",
+    "gulp-watch": "4.3.11"
+  }
+}

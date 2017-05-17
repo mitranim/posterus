@@ -1,0 +1,7 @@
+# Commonly ignored files
+*.log
+.DS_Store
+
+# Folders
+node_modules
+misc
