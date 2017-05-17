@@ -310,19 +310,22 @@ like `.then()` in promises.
 
 ```js
 Future.fromError(Error('<fail>'))
-  .mapError(error => error.message)
-  .map((_error, result) => {
-    console.info(result)  // '<fail>'
+  // Rest easy, this won't happen
+  .mapResult(result => {
+    console.info(result)
+    console.info('Got it! I quit!')
+    process.exit(0)
+  })
+  .map((error, _result) => {
+    console.warn(error)  // '<fail>'
   })
 
 Future.fromResult('<ok>')
-  // Rest easy, this won't happen
-  .mapError(error => {
-    console.error('Oh noes! Panic!')
-    process.exit(1)
+  .mapResult(result => {
+    return [result]
   })
   .map((_error, result) => {
-    console.info(result)  // '<ok>'
+    console.info(result)  // ['<ok>']
   })
 ```
 
