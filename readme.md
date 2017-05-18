@@ -29,7 +29,7 @@ Lightweight (around 6 KB minified), with solid performance.
     * [`future.finishPending`](#futurefinishpending)
     * [`future.deref`](#futurederef)
     * [`future.deinit`](#futuredeinit)
-  * [Future Statics](#futurestatics)
+  * [Future Statics](#future-statics)
     * [`Future.init`](#futureinitiniter)
     * [`Future.initAsync`](#futureinitasynciniter)
     * [`Future.from`](#futurefromerror-result)
@@ -40,6 +40,9 @@ Lightweight (around 6 KB minified), with solid performance.
     * [`Future.handleRejection`](#futurehandlerejectionfuture)
     * [`Future.scheduler`](#futurescheduler)
   * [`Scheduler`](#scheduler)
+    * [`scheduler.tick`](#schedulertick)
+    * [`scheduler.asap`](#schedulerasap)
+    * [`scheduler.deinit`](#schedulerdeinit)
   * [`isFuture`](#isfuturevalue)
 * [Misc](#misc)
 
