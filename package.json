@@ -2,7 +2,7 @@
   "name": "posterus",
   "version": "0.0.2",
   "main": "dist/posterus-dist.js",
-  "description": "Composable async primitives (futures) with true cancelation",
+  "description": "Composable async primitives (futures) with true cancelation and scheduling control",
   "keywords": [
     "future",
     "promise",
@@ -10,7 +10,8 @@
     "asynchronous",
     "composable",
     "cancelable",
-    "abortable"
+    "abortable",
+    "scheduling"
   ],
   "authors": [
     "Nelo Mitranim <me@mitranim.com>"

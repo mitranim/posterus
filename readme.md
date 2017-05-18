@@ -409,9 +409,9 @@ Intended to provide more control for esoteric use cases.
 
 #### `future.deinit()`
 
-Deinitialises the future, canceling any pending operations associated with it,
-calling its deiniter to free resources (if available), unchaining and deiniting
-all other related futures.
+Deinitialises the future. Cancels any pending operations associated with it;
+calls its `onDeinit`, if any, to free resources; unchains and deinits all other
+futures related to it.
 
 Cancelation propagates both upstream and downstream:
 
