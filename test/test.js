@@ -5,7 +5,7 @@
 const chai = require('chai')
 chai.use(require('chai-as-promised'))
 const {expect} = chai
-const {isFuture, Future, Reactor} = require('../lib/posterus')
+const {isFuture, Future} = require('../lib/posterus')
 
 /**
  * Utils
@@ -60,7 +60,7 @@ function id (value) {return value}
 // This should prevent reactor ticks from happening "too soon", before we get a
 // chance to intercept pending operations. If reactor uses `setImmediate` or
 // `process.nextTick`, it breaks tests.
-Reactor.global.asap = setTimeout
+Future.scheduler.asap = setTimeout
 
 /**
  * Tests

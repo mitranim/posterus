@@ -1,8 +1,12 @@
 ## Overview
 
-Posterus is a library of promise-like asynchronous primitives (futures) that
-support true cancelation. Futures compose just like promises, but can also be
-cleanly shut down, aborting pending operations and freeing resources.
+Posterus is a library of promise-like asynchronous primitives
+([futures](#future)) that support true cancelation. Futures compose just like
+promises, but can also be cleanly shut down, aborting pending operations and
+freeing resources.
+
+Posterus also exposes its inner [scheduling](#futurescheduler) capabilities,
+allowing you to "opt out" of asynchrony when needed.
 
 Lightweight (around 6 KB minified), with solid performance.
 
@@ -14,28 +18,32 @@ Lightweight (around 6 KB minified), with solid performance.
 * [Installation](#installation)
 * [TL:DR API](#tldr-api)
 * [API](#api)
-   * [`Future`](#future)
-      * [`future.arrive`](#futurearriveerror-result)
-      * [`future.map`](#futuremapmapper)
-      * [`future.mapError`](#futuremaperrormapper)
-      * [`future.mapResult`](#futuremapresultresult)
-      * [`future.toPromise`](#futuretopromise)
-      * [`future.catch`](#futurecatchonrejected)
-      * [`future.then`](#futurethenonresolved)
-      * [`future.finishPending`](#futurefinishpending)
-      * [`future.deref`](#futurederef)
-      * [`future.deinit`](#futuredeinit)
-   * [Statics](#statics)
-      * [`Future.init`](#futureinitiniter)
-      * [`Future.initAsync`](#futureinitasynciniter)
-      * [`Future.from`](#futurefromerror-result)
-      * [`Future.fromError`](#futurefromerrorerror)
-      * [`Future.fromResult`](#futurefromresultresult)
-      * [`Future.all`](#futureallvalues)
-      * [`Future.race`](#futureracevalues)
-      * [`Future.handleRejection`](#futurehandlerejectionfuture)
-   * [`isFuture`](#isfuturevalue)
+  * [`Future`](#future)
+    * [`future.arrive`](#futurearriveerror-result)
+    * [`future.map`](#futuremapmapper)
+    * [`future.mapError`](#futuremaperrormapper)
+    * [`future.mapResult`](#futuremapresultresult)
+    * [`future.toPromise`](#futuretopromise)
+    * [`future.catch`](#futurecatchonrejected)
+    * [`future.then`](#futurethenonresolved)
+    * [`future.finishPending`](#futurefinishpending)
+    * [`future.deref`](#futurederef)
+    * [`future.deinit`](#futuredeinit)
+  * [Future Statics](#futurestatics)
+    * [`Future.init`](#futureinitiniter)
+    * [`Future.initAsync`](#futureinitasynciniter)
+    * [`Future.from`](#futurefromerror-result)
+    * [`Future.fromError`](#futurefromerrorerror)
+    * [`Future.fromResult`](#futurefromresultresult)
+    * [`Future.all`](#futureallvalues)
+    * [`Future.race`](#futureracevalues)
+    * [`Future.handleRejection`](#futurehandlerejectionfuture)
+    * [`Future.scheduler`](#futurescheduler)
+  * [`Scheduler`](#scheduler)
+  * [`isFuture`](#isfuturevalue)
 * [Misc](#misc)
+
+---
 
 ## Why
 
@@ -44,7 +52,7 @@ Lightweight (around 6 KB minified), with solid performance.
 Cancelation! It's missing from the JS Promise spec, and it's a BIG deal, far
 bigger than most developers realise. The ability to stop async operations,
 completely freeing resources and memory, has massive benefits that may be
-difficult to notice until you have it.
+difficult to notice when you don't have it.
 
 ### Why not add cancelation support to promises?
 
@@ -63,6 +71,8 @@ for the most common use case!
 True cancelation must propagate upstream, prevent all pending work, and
 immediately free resources and memory.
 
+---
+
 ## Installation
 
 Install with NPM:
@@ -79,9 +89,11 @@ Then import:
 const {Future} = require('posterus')
 ```
 
+---
+
 ## TL:DR API
 
-Gist:
+Too long, didn't read!
 
 * create with [`Future.init`](#futureinitiniter),
   [`Future.from`](#futurefromerror-result),
@@ -140,6 +152,8 @@ Future.race([
   Future.fromResult('<this one wins the race>'),
 ])
 ```
+
+---
 
 ## API
 
@@ -375,13 +389,13 @@ the future compatible with promise-based APIs such as async/await.
 Attempts to finish some pending asynchronous operations associated with this
 particular future, _right now_. This includes:
 
-  * unhandled rejection
-  * triggering a child future
-  * [`Future.initAsync`](#futureinitasynciniter) initialiser
+* unhandled rejection
+* `.map()` callback and propagation of result to child future, if any
+* [`Future.initAsync`](#futureinitasynciniter) initialiser
 
-Intended to give you more control over _time_, allowing to opt out of
-asynchrony. That said, actual use cases for this are rare. If you don't know you
-want it, you probably don't need it.
+Note: `.finishPending()` affects only one future. If you want to synchronously
+finish as many pending operations as possible, call
+[`Future.scheduler.tick()`](#futurescheduler).
 
 #### `future.deref()`
 
@@ -428,7 +442,7 @@ ancestor.map((error, result) => {
 ancestor.deinit()
 ```
 
-### Statics
+### Future Statics
 
 #### `Future.init(initer)`
 
@@ -612,8 +626,102 @@ Future.race([
 
 #### `Future.handleRejection(future)`
 
-Gets called on each unhandled rejection. By default, throws the rejection error.
-Feel free to override.
+Gets called on each unhandled rejection. By default, rethrows the error
+contained in the future. Feel free to override.
+
+#### `Future.scheduler`
+
+Global instance of [`Scheduler`](#scheduler) used for all asynchronous
+operations inside Posterus. Exposed to give you more control.
+
+---
+
+### `Scheduler`
+
+Utility for orchestrating async operations. One global instance is exposed as
+`Future.scheduler`.
+
+#### `scheduler.tick()`
+
+Attempts to finish all pending async operations, _right now_. Gives you more
+control over _time_, allowing to "opt out" of asynchrony in situations that
+demand synchronous execution.
+
+Asynchronous operations include:
+
+* unhandled rejections
+* `.map()` callbacks and propagation of results from parent to child futures
+* [`Future.initAsync`](#futureinitasynciniter) initialisers
+
+`.tick()` is idempotent: it's ok to make redundant calls, or call it before the
+next pending tick.
+
+Note that `.tick()` could throw in case of unhandled rejection. In that case,
+the remaining operations will remain pending until the next scheduled or manual
+tick.
+
+This needs a motivating example.
+
+Suppose we have a React app, and want to wringle absolute maximum performance
+out of it. View updating is typically one of the most expensive operations, and
+often happens redundantly. We can improve performance by pausing view updates
+while updating the app state in a network callback, and resuming afterwards.
+
+Scheduling and globally pausing React view updates is a whole separate topic.
+I'll just say that you should use [`Prax`](https://mitranim.com/prax/), which
+gives you that capability among other things.
+
+```js
+const {Future} = require('posterus')
+const {RenderQue} = require('prax')
+const {Xhttp} = require('xhttp')
+
+function httpRequest (params) {
+  return Future.init(future => {
+    const xhr = Xhttp(params)
+      .onDone(result => {
+        // Pauses Prax-enabled React views
+        RenderQue.globalRenderQue.dam()
+
+        try {
+          if (result.ok) future.arrive(null, result)
+          else future.arrive(result)
+
+          // Before we resume view updates,
+          // this attempts to finish all pending operations,
+          // including future callbacks that could update the app state
+          Future.scheduler.tick()
+        }
+        finally {
+          // Resumes view updates
+          RenderQue.globalRenderQue.flush()
+        }
+      })
+      .start()
+
+    return function onDeinit () {
+      xhr.onabort = null
+      xhr.abort()
+    }
+  })
+}
+```
+
+#### `scheduler.asap`
+
+The function used for actual async scheduling. In Node, this is
+`process.nextTick`. In browser, this uses `MessageChannel` or falls back on
+`setTimeout`.
+
+Called internally as `scheduler.asap(onNextTick)`. Feel free to override with a
+faster, slower, or smarter implementation depending on your needs.
+
+#### `scheduler.deinit()`
+
+Empties the pending operation queue. You should never call this on
+`Future.scheduler`, but could be relevant for something custom.
+
+---
 
 ### `isFuture(value)`
 
@@ -628,6 +736,8 @@ const {isFuture, Future} = require('posterus')
 isFuture(new Future())  // true
 isFuture(Future)        // false
 ```
+
+---
 
 ## Misc
 
