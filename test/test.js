@@ -649,6 +649,18 @@ seq([
   },
 
 
+  async function test_all_from_sync_plain_results () {
+    const joined = Future.all(['one', 'two'])
+
+    const result = await race(
+      resolve => joined.mapResult(resolve),
+      () => {throw Error('timed out')}
+    )
+
+    expect(result).to.deep.equal(['one', 'two'])
+  },
+
+
   async function test_all_from_sync_mixed () {
     const joined = Future.all([
       'one',
@@ -742,6 +754,18 @@ seq([
       console.error(new MockError(`must not be thrown`))
       process.exit(1)
     })
+  },
+
+
+  async function test_race_with_sync_plain_results () {
+    const joined = Future.race(['one', 'two'])
+
+    const result = await race(
+      resolve => joined.mapResult(resolve),
+      () => {throw Error('timed out')}
+    )
+
+    expect(result).to.equal('one')
   },
 
 

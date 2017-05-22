@@ -389,15 +389,15 @@ the future compatible with promise-based APIs such as async/await.
 
 #### `future.finishPending()`
 
-Attempts to finish some pending asynchronous operations associated with this
-particular future, _right now_. This includes:
+Attempts to finish the pending asynchronous operations on this particular
+future, _right now_. This includes:
 
 * unhandled rejection
 * `.map()` callback and propagation of result to child future, if any
 * [`Future.initAsync`](#futureinitasynciniter) initialiser
 
-Note: `.finishPending()` affects only one future. If you want to synchronously
-finish as many pending operations as possible, call
+Note: `.finishPending()` affects only the future it's called on. If you want to
+synchronously finish _all_ pending operations, call
 [`Future.scheduler.tick()`](#futurescheduler).
 
 #### `future.deref()`
@@ -716,13 +716,13 @@ The function used for actual async scheduling. In Node, this is
 `process.nextTick`. In browser, this uses `MessageChannel` or falls back on
 `setTimeout`.
 
-Called internally as `scheduler.asap(onNextTick)`. Feel free to override with a
-faster, slower, or smarter implementation depending on your needs.
+Called internally as `asap(onNextTick)`. Feel free to override with a faster,
+slower, or smarter implementation depending on your needs.
 
 #### `scheduler.deinit()`
 
 Empties the pending operation queue. You should never call this on
-`Future.scheduler`, but could be relevant for something custom.
+`Future.scheduler`, but it could be relevant for something custom.
 
 ---
 
@@ -730,8 +730,7 @@ Empties the pending operation queue. You should never call this on
 
 Abstract future interface. Checks if `value` has the same shape as a Posterus
 [`Future`](#future). Used internally throughout the library. There are no
-`instanceof` checks in Posterus, allowing interoperability with a custom Future
-implementation.
+`instanceof` checks in Posterus.
 
 ```js
 const {isFuture, Future} = require('posterus')
