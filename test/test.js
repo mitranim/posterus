@@ -5,7 +5,7 @@
 const chai = require('chai')
 chai.use(require('chai-as-promised'))
 const {expect} = chai
-const {isFuture, Future} = require('../lib/posterus')
+const {isFuture, Future} = require('../dist/posterus-dist')
 
 /**
  * Utils

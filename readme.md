@@ -8,7 +8,7 @@ freeing resources.
 Posterus also exposes its inner [scheduling](#futurescheduler) capabilities,
 allowing you to "opt out" of asynchrony when needed.
 
-Lightweight (≈ 6 KB minified + 1 KB dependency), with solid performance.
+Lightweight (≈ 7 KB minified + 1 KB dependency), with solid performance.
 
 ## TOC
 
