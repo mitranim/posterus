@@ -3,6 +3,8 @@
     "check-es2015-constants",
     "transform-es2015-block-scoping",
     ["transform-es2015-classes", {"loose": true}],
+    "transform-es2015-literals",
+    "transform-es2015-shorthand-properties",
     ["transform-es2015-spread", {"loose": true}],
     "transform-es2015-template-literals"
   ]

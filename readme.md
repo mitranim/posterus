@@ -8,7 +8,7 @@ freeing resources.
 Posterus also exposes its inner [scheduling](#futurescheduler) capabilities,
 allowing you to "opt out" of asynchrony when needed.
 
-Lightweight (around 6 KB minified), with solid performance.
+Lightweight (≈ 6 KB minified + 1 KB dependency), with solid performance.
 
 ## TOC
 
@@ -26,6 +26,7 @@ Lightweight (around 6 KB minified), with solid performance.
     * [`future.toPromise`](#futuretopromise)
     * [`future.catch`](#futurecatchonrejected)
     * [`future.then`](#futurethenonresolved)
+    * [`future.weak`](#futureweak)
     * [`future.finishPending`](#futurefinishpending)
     * [`future.deref`](#futurederef)
     * [`future.deinit`](#futuredeinit)
@@ -387,6 +388,49 @@ where `onResolved: ƒ(result): any`
 Shortcut for `.toPromise().then(onResolved)`. Imitates a promise, making
 the future compatible with promise-based APIs such as async/await.
 
+#### `future.weak()`
+
+Creates a "weakly held" branch that doesn't "own" the parent future. Unlike the
+regular `.map()` which consumes the future, `.weak()` can create any number of
+branches, similar to `.then()` in promises. The tradeoff is that deiniting a
+weak branch doesn't propagate cancelation to the parent future or other
+branches.
+
+```js
+const root = Future.fromResult('<result>')
+  .mapResult(/* ... */)
+  .mapResult(/* ... */)
+
+const branch0 = root.weak().mapResult(/* ... */)
+const branch1 = root.weak().mapResult(/* ... */)
+
+// root can still be consumed
+const trunk = root.mapResult(/* ... */)
+
+// has no effect on root, trunk, or other branches
+branch0.deinit()
+```
+
+Downstream cancelation from the parent affects weak branches, but upstream
+cancelation terminates at the `.weak()` future:
+
+```sh
+# weak branches from main trunk
+* - * - * - * - * - * - * - * - * - * - * - * - *
+                            ° - * - * - * - * - * - * - *
+                            ° - * - * - *
+
+# downstream
+.deinit() - × - × - × - × - × - × - × - × - × - ×
+                            × - × - × - × - × - × - × - ×
+                            ° - × - × - ×
+
+# upstream
+* - * - * - * - * - * - * - * - * - * - * - * - *
+                            × - × - × - × - × - × - × - .deinit()
+                            ° - * - * - *
+```
+
 #### `future.finishPending()`
 
 Attempts to finish the pending asynchronous operations on this particular
@@ -443,6 +487,22 @@ ancestor.map((error, result) => {
 })
 
 ancestor.deinit()
+```
+
+You can also picture it like this:
+
+```sh
+# chain of mapped futures
+* - * - * - * - * - * - * - * - * - * - * - * - *
+
+# upstream cancelation
+× - × - × - × - × - × - × - × - × - × - .deinit()
+
+# downstream cancelation
+.deinit() - × - × - × - × - × - × - × - × - × - ×
+
+# bidirectional cancelation
+× - × - × - × - × - .deinit() - × - × - × - × - ×
 ```
 
 ### Future Statics
@@ -665,14 +725,15 @@ tick.
 
 This needs a motivating example.
 
-Suppose we have a React app, and want to wringle absolute maximum performance
-out of it. View updating is typically one of the most expensive operations, and
+Suppose we have a React app, and want to wring absolute maximum performance out
+of it. View updating is typically one of the most expensive operations, and
 often happens redundantly. We can improve performance by pausing view updates
 while updating the app state in a network callback, and resuming afterwards.
 
 Scheduling and globally pausing React view updates is a whole separate topic.
 I'll just say that you should use [`Prax`](https://mitranim.com/prax/), which
-gives you that capability among other things.
+gives you [that capability](https://mitranim.com/prax/api#-renderque-global-)
+among other things.
 
 ```js
 const {Future} = require('posterus')
@@ -729,8 +790,7 @@ Empties the pending operation queue. You should never call this on
 ### `isFuture(value)`
 
 Abstract future interface. Checks if `value` has the same shape as a Posterus
-[`Future`](#future). Used internally throughout the library. There are no
-`instanceof` checks in Posterus.
+[`Future`](#future). Used internally for interoperability with external futures.
 
 ```js
 const {isFuture, Future} = require('posterus')

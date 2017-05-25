@@ -5,7 +5,7 @@
 const chai = require('chai')
 chai.use(require('chai-as-promised'))
 const {expect} = chai
-const {isFuture, Future} = require('../dist/posterus-dist')
+const {isFuture, Future} = require('../lib/posterus')
 
 /**
  * Utils
@@ -16,7 +16,7 @@ process.on('unhandledRejection', (error, _promise) => {
   process.exit(1)
 })
 
-class MockError extends Error {get name () {return 'MockError'}}
+class MockError extends Error {get name () {return this.constructor.name}}
 
 function runAsync (fun) {
   return new Promise((resolve, reject) => {
@@ -474,16 +474,16 @@ seq([
 
 
   async function test_map_is_unavailable_after_deinit () {
-    const future = Future.fromResult('<sync result>')
+    const future = new Future()
     future.deinit()
-    expect(future.map.bind(future, noop)).to.throw(`mapped once`)
+    expect(future.map.bind(future, noop)).to.throw(Error, `averted`)
   },
 
 
-  async function map_consumes_future () {
-    const future = Future.from('<initial value>')
+  async function map_consumes_future_and_can_only_be_called_once () {
+    const future = new Future()
     future.map(noop)
-    expect(future.map.bind(future, noop)).to.throw()
+    expect(future.map.bind(future, noop)).to.throw(Error, `mapped once`)
   },
 
 
@@ -549,17 +549,12 @@ seq([
   },
 
 
-  async function test_nested_arrive_with_future_error_deinits_result () {
+  async function test_nested_arrive_with_future_error_and_future_result () {
     const future = new Future()
 
-    const message = '<error>'
-
     future.arrive(
-      Future.fromError(new MockError(message)),
-      Future.initAsync(() => cancelableDelay(0, () => {
-        console.error(new MockError(`must not be thrown`))
-        process.exit(1)
-      }))
+      Future.fromError(new MockError('<error>')),
+      Future.fromResult('<unused result>')
     )
 
     const error = await race(
@@ -568,7 +563,6 @@ seq([
     )
 
     expect(error).to.be.instanceof(MockError)
-    expect(error.message).to.equal(message)
   },
 
 
@@ -859,5 +853,139 @@ seq([
 
     expect(error).to.be.instanceof(MockError)
     expect(error.message).to.equal(message)
+  },
+
+
+  async function test_weak_with_error () {
+    const future = new Future()
+
+    const weakBefore = future.weak()
+
+    future.arrive(new MockError('<error>'))
+
+    expect(future.deref.bind(future)).to.throw(MockError, '', `
+      Future error remains accessible after calling .weak()
+    `)
+
+    const weakError = await race(
+      resolve => weakBefore.mapError(resolve),
+      () => {throw Error('timed out')}
+    )
+
+    expect(weakError).to.be.instanceof(MockError)
+
+    const eventual = race(
+      resolve => future.mapError(resolve),
+      () => {throw Error('timed out')}
+    )
+
+    const weakAfter = future.weak()
+    expect(weakAfter.deref.bind(weakAfter)).to.throw(MockError)
+
+    expect(await eventual).to.be.instanceof(MockError, '', `
+      .weak() can be called before and after .map() without affecting it
+    `)
+  },
+
+
+  async function test_weak_with_result () {
+    const result = '<result>'
+
+    const future = new Future()
+
+    const weakBefore = future.weak()
+
+    future.arrive(null, result)
+
+    expect(future.deref()).to.equal(result, '', `
+      Future value remains accessible after calling .weak()
+    `)
+
+    const weakResult = await race(
+      resolve => weakBefore.mapResult(resolve),
+      () => {throw Error('timed out')}
+    )
+
+    expect(weakResult).to.equal(result)
+
+    const eventual = race(
+      resolve => future.mapResult(resolve),
+      () => {throw Error('timed out')}
+    )
+
+    const weakAfter = future.weak()
+    expect(weakAfter.deref()).to.equal(result)
+
+    expect(await eventual).to.equal(result, '', `
+      .weak() can be called before and after .map() without affecting it
+    `)
+  },
+
+
+  async function test_weak_deinit_before_arrive () {
+    const future = new Future()
+
+    future.weak().deinit()
+    future.weak().deinit()
+
+    future.arrive(new MockError('<sync error>'))
+    expect(future.deref.bind(future)).to.throw(MockError)
+  },
+
+
+  async function test_weak_after_deinit () {
+    const future = new Future()
+    future.deinit()
+    expect(future.weak.bind(future)).to.throw(Error, 'averted')
+  },
+
+
+  async function test_weaks_dont_deinit_strong () {
+    const result = '<async result>'
+
+    const future = Future.init(() => function fatalFailure () {
+      console.error(new MockError(`must not be thrown`))
+      process.exit(1)
+    })
+
+    future.weak().deinit()
+    future.weak().deinit()
+
+    await runAsync(() => {
+      future.arrive(null, result)
+    })
+
+    future.weak().deinit()
+    future.weak().deinit()
+
+    expect(future.deref()).to.equal(result)
+  },
+
+
+  async function test_strong_deinits_weaks () {
+    const result = '<result>'
+
+    const future = new Future()
+
+    future.weak().map(() => {
+      console.error(new MockError(`must not be thrown`))
+      process.exit(1)
+    })
+
+    future.arrive(null, result)
+
+    const weakAfter = future.weak()
+
+    future.deinit()
+
+    const weakResult = await race(
+      resolve => weakAfter.mapResult(resolve),
+      () => {throw Error('timed out')}
+    )
+
+    expect(weakResult).to.equal(
+      result,
+      `.weak() futures created after .arrive() are unaffected by .deinit()`
+    )
   },
 ])

@@ -103,7 +103,7 @@
     // "no-use-before-define": ["error", {"functions": false, "classes": false}],
     "global-require": "error",
     "no-path-concat": "error",
-    "no-bitwise": "error",
+    // "no-bitwise": "error",
 
     // Style
 
