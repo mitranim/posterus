@@ -1,6 +1,6 @@
 {
   "name": "posterus",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "main": "dist/posterus-dist.js",
   "description": "Composable async primitives (futures) with true cancelation and scheduling control",
   "keywords": [

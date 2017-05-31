@@ -130,7 +130,7 @@
     // "id-length": ["error", {"min": 3}],
     "indent": ["error", 2, {"SwitchCase": 1}],
     // "key-spacing": ["error", {"align": "value"}],
-    "key-spacing": "error",
+    // "key-spacing": "error",
     "keyword-spacing": "error",
     "lines-around-comment": "error",
     "lines-around-directive": "error",

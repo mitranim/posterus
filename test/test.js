@@ -483,7 +483,7 @@ seq([
   async function map_consumes_future_and_can_only_be_called_once () {
     const future = new Future()
     future.map(noop)
-    expect(future.map.bind(future, noop)).to.throw(Error, `mapped once`)
+    expect(future.map.bind(future, noop)).to.throw(Error, `mapped`)
   },
 
 
@@ -509,11 +509,10 @@ seq([
 
 
   async function test_nested_arrive_async () {
-    const message = '<async nested error>'
     const future = new Future()
 
     future.arrive(Future.initAsync(future => {
-      future.arrive(Future.fromResult(Future.fromError(new MockError(message))))
+      future.arrive(null, Future.fromResult(Future.fromError(new MockError('<error>'))))
     }))
 
     const error = await race(
@@ -522,7 +521,50 @@ seq([
     )
 
     expect(error).to.be.instanceof(MockError)
-    expect(error.message).to.equal(message)
+  },
+
+
+  async function test_nested_arrive_result_as_error_sync () {
+    const future = new Future()
+
+    future.arrive(Future.fromResult(new MockError('<error>')))
+
+    const error = await race(
+      resolve => future.mapError(resolve),
+      () => {throw Error('timed out')}
+    )
+
+    expect(error).to.be.instanceof(MockError)
+  },
+
+
+  async function test_nested_arrive_error_as_result_sync () {
+    const future = new Future()
+
+    future.arrive(null, Future.fromError(new MockError('<error>')))
+
+    const error = await race(
+      resolve => future.mapError(resolve),
+      () => {throw Error('timed out')}
+    )
+
+    expect(error).to.be.instanceof(MockError)
+  },
+
+
+  async function test_nested_arrive_result_as_error_async () {
+    const future = new Future()
+
+    future.arrive(Future.initAsync(future => {
+      future.arrive(null, Future.fromResult(new MockError('<error>')))
+    }))
+
+    const error = await race(
+      resolve => future.mapError(resolve),
+      () => {throw Error('timed out')}
+    )
+
+    expect(error).to.be.instanceof(MockError)
   },
 
 
