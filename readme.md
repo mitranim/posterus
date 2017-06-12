@@ -214,28 +214,32 @@ result to the child future.
 // Will warn about unhandled rejection
 new Future().arrive(Error('<error>'))
 
-new Future().arrive(null, '<result>')
-  .mapResult(result => {
-    console.info(result)  // '<result>'
-  })
+const future = new Future()
+future.arrive(null, '<result>')
+future.mapResult(result => {
+  console.info(result)  // '<result>'
+})
 
 // flattens provided future
-new Future().arrive(null, Future.fromResult('<future result>'))
-  .mapResult(result => {
-    console.info(result)  // '<future result>'
-  })
+const future = new Future()
+future.arrive(null, Future.fromResult('<future result>'))
+future.mapResult(result => {
+  console.info(result)  // '<future result>'
+})
 
 // waits for provided future
-new Future().arrive(null, Future.initAsync(future => future.arrive(null, '<async result>')))
-  .mapResult(result => {
-    console.info(result)  // '<async result>'
-  })
+const future = new Future()
+future.arrive(null, Future.initAsync(future => future.arrive(null, '<async result>')))
+future.mapResult(result => {
+  console.info(result)  // '<async result>'
+})
 
 // waits for provided future
-new Future().arrive(Future.initAsync(future => future.arrive(Error('<async error>'))))
-  .mapError(error => {
-    console.warn(error)  // '<async error>'
-  })
+const future = new Future()
+future.arrive(Future.initAsync(future => future.arrive(Error('<async error>'))))
+future.mapError(error => {
+  console.warn(error)  // '<async error>'
+})
 ```
 
 When called after `.map()`, propagates error and result to child future:
