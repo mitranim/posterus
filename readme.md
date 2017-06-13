@@ -270,10 +270,10 @@ non-future values. This is known as "flatmap" in some languages.
 The newly created future assumes control of the original future and any
 intermediary futures, and will [`.deinit()`](#futuredeinit) them when canceled.
 
-This operation "consumes" the future, disallowing any further chain calls on the
-same reference. In other words, each future can only have _one consumer_ which
-has _exclusive ownership_ over it. This allows for cancelation without
-unexpected adversities.
+This operation "consumes" the future, disallowing any further chainining from
+the same reference. In other words, each future can only have _one consumer_
+which has _exclusive ownership_ over it. This allows for cancelation without
+unexpected conflicts.
 
 All other chaining operations are defined in terms of `.map()` and share these
 characteristics.
@@ -313,7 +313,7 @@ Future.fromError(Error('<fail>'))
   })
 
 Future.fromResult('<ok>')
-  // Rest easy, this won't happen
+  // Won't be called because the future is ok
   .mapError(error => {
     console.error('Oh noes! Panic!')
     process.exit(1)
@@ -332,7 +332,7 @@ like `.then()` in promises.
 
 ```js
 Future.fromError(Error('<fail>'))
-  // Rest easy, this won't happen
+  // Won't be called because the future is not ok
   .mapResult(result => {
     console.info(result)
     console.info('Got it! I quit!')
@@ -353,27 +353,29 @@ Future.fromResult('<ok>')
 
 #### `future.toPromise()`
 
-Consumes the future, returning a promise of its eventual result. This uses the
-built-in `Promise`, which must exist in the global environment.
-
-The returned promise has no control over the operations encapsulated by the
-future, and therefore can be passed to multiple consumers without worrying about
-one of them aborting the operation for everyone else.
+Adapter for promise compatibility. Consumes the future, returning a promise of
+its eventual result. Uses the JavaScript `Promise` API, which must exist in the
+global environment.
 
 The original future can still be used for control; deiniting it will prevent the
 promise from being triggered.
+
+Note: if you want to "broadcast" a future to multiple consumers, use
+[`.weak()`](#futureweak) instead. `.toPromise()` is strictly less powerful and
+should only be used for promise compatibility.
 
 ```js
 const future = Future.initAsync(future => {
   future.arrive(null, '<async result>')
 })
 
-future
+const promise = future
   .toPromise()
   .then(result => {
     console.info(result)
   })
-  instanceof Promise  // true
+
+promise instanceof Promise  // true
 
 future.deinit()  // frees resources, averts promise callbacks
 ```
@@ -427,11 +429,11 @@ cancelation terminates at the `.weak()` future:
 # downstream
 .deinit() - × - × - × - × - × - × - × - × - × - ×
                             × - × - × - × - × - × - × - ×
-                            ° - × - × - ×
+                            × - × - × - ×
 
 # upstream
 * - * - * - * - * - * - * - * - * - * - * - * - *
-                            × - × - × - × - × - × - × - .deinit()
+                            ° - × - × - × - × - × - × - .deinit()
                             ° - * - * - *
 ```
 
@@ -517,14 +519,14 @@ where `initer: ƒ(future): (deiniter: ƒ(): void)`
 
 Creates a new future and runs `initer` synchronously, before the end of the
 `Future.init` call. Returns the new future. The initer can resolve the future
-synchronously or asynchronously. Throwing in the initer is equivalent to
-rejection.
+synchronously or asynchronously. An exception in the initer causes the future to
+be rejected.
 
 The initer can return a _deiniter_ function that will be called when the future
 is canceled via [`.deinit()`](#futuredeinit), either directly or as part of a
 chain.
 
-Basically it's like the `Promise` constructor, but with cancelation support.
+Similar to the `new Promise(...)` constructor, but with support for cancelation.
 
 ```js
 Future.init(future => {
@@ -555,7 +557,7 @@ Future.init(future => {
 where `initer: ƒ(future): (deiniter: ƒ(): void)`
 
 Similar to [`Future.init`](#futureinitiniter), but the initer runs
-asynchronously, _after_ the call to `Future.initAsync` returns.
+asynchronously, after the call to `Future.initAsync` is finished.
 
 ```js
 Future.initAsync(future => {
@@ -736,8 +738,8 @@ while updating the app state in a network callback, and resuming afterwards.
 
 Scheduling and globally pausing React view updates is a whole separate topic.
 I'll just say that you should use [`Prax`](https://mitranim.com/prax/), which
-gives you [that capability](https://mitranim.com/prax/api#-renderque-global-)
-among other things.
+gives you the [capability](https://mitranim.com/prax/api#-renderque-) to pause
+and batch React updates, among other things.
 
 ```js
 const {Future} = require('posterus')
@@ -793,8 +795,9 @@ Empties the pending operation queue. You should never call this on
 
 ### `isFuture(value)`
 
-Abstract future interface. Checks if `value` has the same shape as a Posterus
-[`Future`](#future). Used internally for interoperability with external futures.
+Abstract interface and boolean test. Checks if `value` has the same shape as a
+Posterus [`Future`](#future). Used internally for interoperability with external
+futures.
 
 ```js
 const {isFuture, Future} = require('posterus')
