@@ -98,7 +98,7 @@
     ],
     "no-shadow-restricted-names": "error",
     "no-undef": "error",
-    "no-undef-init": "error",
+    "no-undef-init": "off",
     "no-unused-vars": ["error", {"argsIgnorePattern": "^_.", "varsIgnorePattern": "^_."}],
     // "no-use-before-define": ["error", {"functions": false, "classes": false}],
     "global-require": "error",

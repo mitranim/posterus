@@ -8,7 +8,12 @@ freeing resources.
 Posterus also exposes its inner [scheduling](#futurescheduler) capabilities,
 allowing you to "opt out" of asynchrony when needed.
 
-Lightweight (≈ 7 KB minified + 1 KB dependency), with solid performance.
+Lightweight (≈ 7 KB minified + 1 KB dependency), with solid performance (much
+more efficient than native promises).
+
+Includes optional future-based coroutines: an alternative to async/await that
+supports cancelation of in-progress work. See
+[`routine`](#routine).
 
 ## TOC
 
@@ -16,7 +21,7 @@ Lightweight (≈ 7 KB minified + 1 KB dependency), with solid performance.
 * [TOC](#toc)
 * [Why](#why)
 * [Installation](#installation)
-* [TL:DR API](#tldr-api)
+* [TLDR API](#tldr-api)
 * [API](#api)
   * [`Future`](#future)
     * [`future.arrive`](#futurearriveerror-result)
@@ -45,6 +50,7 @@ Lightweight (≈ 7 KB minified + 1 KB dependency), with solid performance.
     * [`scheduler.asap`](#schedulerasap)
     * [`scheduler.deinit`](#schedulerdeinit)
   * [`isFuture`](#isfuturevalue)
+  * [`routine`](#routine)
 * [Misc](#misc)
 
 ---
@@ -95,9 +101,9 @@ const {Future} = require('posterus')
 
 ---
 
-## TL:DR API
+## TLDR API
 
-Too long, didn't read!
+Too long, didn't read?
 
 * create with [`Future.init`](#futureinitiniter),
   [`Future.from`](#futurefromerror-result),
@@ -155,6 +161,35 @@ Future.race([
   }),
   Future.fromResult('<this one wins the race>'),
 ])
+```
+
+* use [coroutines](#routine) for blocking code:
+
+```js
+const {Future} = require('posterus')
+const {routine} = require('posterus/routine')
+
+const future = routine(outer('<input>'))
+
+function* outer(input) {
+  const intermediary = yield Future.fromResult(input)
+  let finalResult
+  try {
+    finalResult = yield inner(intermediary)
+  }
+  catch (err) {
+    console.error(err)
+    finalResult = yield Future.fromResult('<replacement>')
+  }
+  return finalResult
+}
+
+function* inner(input) {
+  return Future.fromError(input)
+}
+
+// Can abort work in progress
+future.deinit()
 ```
 
 ---
@@ -804,6 +839,42 @@ const {isFuture, Future} = require('posterus')
 
 isFuture(new Future())  // true
 isFuture(Future)        // false
+```
+
+---
+
+### `routine`
+
+Future-based implementation of coroutines. Alternative to async/await based
+on futures, with full support for in-progress cancelation.
+
+Must be imported from an optional module.
+
+```js
+const {Future} = require('posterus')
+const {routine} = require('posterus/routine')
+
+const future = routine(outer('<input>'))
+
+function* outer(input) {
+  const intermediary = yield Future.fromResult(input)
+  let finalResult
+  try {
+    finalResult = yield inner(intermediary)
+  }
+  catch (err) {
+    console.error(err)
+    finalResult = yield Future.fromResult('<replacement>')
+  }
+  return finalResult
+}
+
+function* inner(input) {
+  return Future.fromError(input)
+}
+
+// Can abort work in progress
+future.deinit()
 ```
 
 ---

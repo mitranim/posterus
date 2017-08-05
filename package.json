@@ -1,8 +1,8 @@
 {
   "name": "posterus",
-  "version": "0.0.6",
-  "main": "dist/posterus-dist.js",
-  "description": "Composable async primitives (futures) with true cancelation and scheduling control",
+  "version": "0.0.7",
+  "main": "dist/posterus",
+  "description": "Composable async primitives (futures) with true cancelation and control over scheduling. Includes optional courotune implementation.",
   "keywords": [
     "future",
     "promise",
@@ -11,7 +11,10 @@
     "composable",
     "cancelable",
     "abortable",
-    "scheduling"
+    "scheduling",
+    "coroutine",
+    "async",
+    "await"
   ],
   "authors": [
     "Nelo Mitranim <me@mitranim.com>"
@@ -35,7 +38,9 @@
     "babel-plugin-check-es2015-constants": "6.22.0",
     "babel-plugin-transform-es2015-block-scoping": "6.24.1",
     "babel-plugin-transform-es2015-classes": "6.24.1",
+    "babel-plugin-transform-es2015-destructuring": "6.23.0",
     "babel-plugin-transform-es2015-literals": "6.22.0",
+    "babel-plugin-transform-es2015-parameters": "6.24.1",
     "babel-plugin-transform-es2015-shorthand-properties": "6.24.1",
     "babel-plugin-transform-es2015-spread": "6.22.0",
     "babel-plugin-transform-es2015-template-literals": "6.22.0",

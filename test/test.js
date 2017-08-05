@@ -5,7 +5,7 @@
 const chai = require('chai')
 chai.use(require('chai-as-promised'))
 const {expect} = chai
-const {isFuture, Future} = require('../dist/posterus-dist')
+const {isFuture, Future} = require('../')
 
 /**
  * Utils
@@ -31,8 +31,8 @@ function cancelableDelay (time, fun, ...args) {
   return clearTimeout.bind(null, setTimeout(fun, time, ...args))
 }
 
-// Not using Promise.race because it would keep the process alive for the
-// duration of the timeout, even after it loses the race.
+// Not using Promise.race because it would keep the test-running process alive
+// for the duration of the timeout, even after it loses the race.
 function race (fun, onTimeout) {
   const cancel = cancelableDelay(500, onTimeout)
   return new Promise(resolve => {
@@ -43,8 +43,7 @@ function race (fun, onTimeout) {
   })
 }
 
-// Doesn't guarantee linear execution. Some tests have async operations that
-// overlap with other tests.
+// Execution starts sequentially, but may still overlap in duration
 function seq (asyncFuns) {
   return asyncFuns.reduce(followUp, Promise.resolve())
 }
@@ -58,8 +57,8 @@ function noop () {}
 function id (value) {return value}
 
 // This should prevent reactor ticks from happening "too soon", before we get a
-// chance to intercept pending operations. If reactor uses `setImmediate` or
-// `process.nextTick`, it breaks tests.
+// chance to intercept pending operations in tests. If reactor uses
+// `setImmediate` or `process.nextTick`, it breaks tests.
 Future.scheduler.asap = setTimeout
 
 /**

@@ -44,27 +44,19 @@ gulp.task('clear', () => (
 gulp.task('compile', () => (
   gulp.src(src.lib)
     .pipe($.babel())
-    .pipe(gulp.dest(out.lib))
-))
-
-// Mangles "private" properties to reduce API surface and potential confusion
-gulp.task('minify:props', () => (
-  gulp.src(src.dist, {ignore: ['**/*.min.js', '**/*.prop.min.js']})
+    // Mangles "private" properties to reduce API surface and potential confusion
     .pipe($.uglify({
       mangle: false,
       compress: false,
       output: {beautify: true},
       mangleProperties: {regex: /_$/},
     }))
-    .pipe($.rename(path => {
-      path.basename += '-dist'
-    }))
     .pipe(gulp.dest(out.lib))
 ))
 
 // Ensures ES5 compliance and shows minified size
-gulp.task('minify:all', () => (
-  gulp.src(src.dist, {ignore: '!**/*-dist.js'})
+gulp.task('minify', () => (
+  gulp.src(src.dist, {ignore: '**/*.min.js'})
     .pipe($.uglify({
       mangle: {toplevel: true},
       compress: {warnings: false},
@@ -74,8 +66,6 @@ gulp.task('minify:all', () => (
     }))
     .pipe(gulp.dest(out.lib))
 ))
-
-gulp.task('minify', gulp.series('minify:props', 'minify:all'))
 
 gulp.task('test', done => {
   if (testProc) {
