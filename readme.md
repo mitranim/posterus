@@ -287,7 +287,7 @@ Async primitives should be modeled after synchronous analogs:
   * async → sync: we can use constructs such as coroutines that convert async
     primitives back to the sync operations that inspired them
 
-Let's see how promises map to synchronous concepts:
+Let's see how promises map to synchronous constructs:
 
 ```js
 const first  = '<some value>'
@@ -305,8 +305,9 @@ multiple places. You could call this _shared ownership_. For this reason, they
 _have_ to be broadcast.
 
 Incidentally, research into automatic resource management has led C++ and Rust
-people away from shared ownership, towards _exclusive ownerhip_ and _move
-semantics_. Let's recreate the first example in Rust:
+people away from shared ownership, towards _exclusive ownerhip_ and [_move
+semantics_](https://doc.rust-lang.org/book/second-edition/ch04-01-what-is-ownership.html).
+Let's recreate the first example in Rust:
 
 ```rs
 fn main() {
@@ -333,9 +334,9 @@ const third  = first.mapResult(value => value)  // exception: use after move
 
 Posterus is unicast because it mirrors the memory model not of JavaScript, but
 of _Rust_. In Rust, taking a value _moves_ it out of the original container. (It
-also has borrowing, whose main value lies in static checks that we don't have.)
-I believe Rust's ownership model is a prerequisite for automatic resource
-management, the next evolution of GC.
+also has borrowing, which is impractical for us to emulate.) I believe Rust's
+ownership model is a prerequisite for automatic resource management, the next
+evolution of GC.
 
 Why force this into a GC language? Same reason C++ and Rust folks ended up with
 exclusive ownership and move semantics: it's a better way of dealing with
@@ -358,10 +359,10 @@ more API surface, more freedom for things to go wrong, and I don't know what to
 tell these people.
 
 Let's try a concrete example: they're incompatible with coroutines. Coroutines
-map asynchronous primitives to synchronous concepts. Promises map to constants,
-streams map to iterators. Since an Rx observable is a superset of both, you
-can't map it to either without downcasting it to a promise or a stream, proving
-the need for these simpler primitives.
+map asynchronous primitives to synchronous constructs. Promises map to
+constants, streams map to iterators. Since an Rx observable is a superset of
+both, you can't map it to either without downcasting it to a promise or a
+stream, proving the need for these simpler primitives.
 
 Another reason is API surface and learning curve. We need simple primitives for
 simple tasks, going to bigger primitives for specialised tasks. Promises are
@@ -380,15 +381,14 @@ Bluebird now supports upstream cancelation. Why not use it and tolerate the
 other [promise annoyances](#3-annoyances-in-the-standard)?
 
   * The size kills it. At the moment of writing, the core Bluebird bundle is 56
-    KB minified. For the browser bundle, that's insanely large just for
+    KB minified. For a browser bundle, that's insanely large just for
     cancelation support. Not caring about another 50 KB is how you end up with
     megabyte-large bundles that take seconds to execute. Posterus comes at 8 KB,
     like a typical promise polyfill.
 
   * At the moment of writing, Bluebird doesn't cancel promises that lose a
-    `Promise.race`. I disagree with these semantics. Many common use cases
-    demand that losers be canceled. See the [timeout race
-    example](#1-race-against-timeout).
+    `Promise.race`. I disagree with these semantics. Some use cases demand that
+    losers be canceled. See the [timeout race example](#1-race-against-timeout).
 
 ---
 
