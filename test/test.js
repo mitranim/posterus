@@ -1,7 +1,5 @@
 'use strict'
 
-/* eslint-disable require-await */
-
 const chai = require('chai')
 chai.use(require('chai-as-promised'))
 const {expect} = chai
@@ -71,31 +69,31 @@ seq([
   },
 
 
-  async function test_arrive_with_error_sync () {
+  async function test_settle_with_error_sync () {
     const future = new Future()
-    future.arrive(new MockError('<error>'), '<unused result>')
+    future.settle(new MockError('<error>'), '<unused result>')
     expect(future.deref.bind(future)).to.throw(MockError)
   },
 
 
-  async function test_arrive_with_result_sync () {
+  async function test_settle_with_result_sync () {
     const future = new Future()
     const result = '<result>'
-    future.arrive(null, result)
+    future.settle(null, result)
     expect(future.deref()).to.equal(result)
   },
 
 
-  async function test_deinit_arrive_with_error_sync () {
+  async function test_deinit_settle_with_error_sync () {
     const future = new Future()
     future.deinit()
-    future.arrive(new MockError(`this must not be thrown: the future is deinited`))
+    future.settle(new MockError(`this must not be thrown: the future is deinited`))
   },
 
 
-  async function test_arrive_error_warns_unhandled () {
+  async function test_settle_error_warns_unhandled () {
     const future = new Future()
-    future.arrive(new MockError('<error>'), '<unused result>')
+    future.settle(new MockError('<error>'), '<unused result>')
     const {handleRejection} = Future
     try {
       const [rejectedFuture] = await race(
@@ -114,27 +112,27 @@ seq([
   },
 
 
-  async function test_arrive_with_error_async () {
+  async function test_settle_with_error_async () {
     const future = new Future()
 
     expect(future.deref()).to.equal(undefined)
 
     await runAsync(() => {
-      future.arrive(new MockError('<async error>'), '<unused result>')
+      future.settle(new MockError('<async error>'), '<unused result>')
     })
 
     expect(future.deref.bind(future)).to.throw(MockError)
   },
 
 
-  async function test_arrive_with_result_async () {
+  async function test_settle_with_result_async () {
     const future = new Future()
     const result = '<async result>'
 
     expect(future.deref()).to.equal(undefined)
 
     await runAsync(() => {
-      future.arrive(null, result)
+      future.settle(null, result)
     })
 
     expect(future.deref()).to.equal(result)
@@ -150,10 +148,32 @@ seq([
   },
 
 
+  async function test_from_error_nested () {
+    const result = '<result>'
+    const future = Future.fromError(Future.fromResult(result))
+    const value = await race(
+      resolve => future.mapError(resolve),
+      () => {throw Error('timed out')}
+    )
+    expect(value).to.equal(result)
+  },
+
+
   async function test_from_result () {
     const result = '<result>'
     expect(Future.from(null, result).deref()).to.equal(result)
     expect(Future.fromResult(result).deref()).to.equal(result)
+  },
+
+
+  async function test_from_result_nested () {
+    const result = '<result>'
+    const future = Future.fromResult(Future.fromResult(result))
+    const value = await race(
+      resolve => future.mapResult(resolve),
+      () => {throw Error('timed out')}
+    )
+    expect(value).to.equal(result)
   },
 
 
@@ -165,7 +185,7 @@ seq([
 
   async function test_init_error_sync () {
     const future = Future.init(future => {
-      future.arrive(new MockError('<error>'))
+      future.settle(new MockError('<error>'))
     })
     expect(future.deref.bind(future)).to.throw(MockError)
   },
@@ -182,7 +202,7 @@ seq([
   async function test_init_result_sync () {
     const result = '<async result>'
     const future = Future.init(future => {
-      future.arrive(null, result)
+      future.settle(null, result)
     })
     expect(future.deref()).to.equal(result)
   },
@@ -197,7 +217,7 @@ seq([
     await race(
       resolve => {
         Future.init(async future => {
-          await runAsync(() => future.arrive(new MockError('<async error>')))
+          await runAsync(() => future.settle(new MockError('<async error>')))
           expect(future.deref.bind(future)).to.throw(MockError)
           resolve()
         })
@@ -209,7 +229,7 @@ seq([
       resolve => {
         Future.init(async future => {
           const result = '<async result>'
-          await runAsync(() => future.arrive(null, result))
+          await runAsync(() => future.settle(null, result))
           expect(future.deref()).to.equal(result)
           resolve()
         })
@@ -238,7 +258,7 @@ seq([
 
     const [future] = await race(
       resolve => Future.initAsync(future => {
-        future.arrive(null, result)
+        future.settle(null, result)
         resolve([future])
       }),
       () => {throw Error('timed out')}
@@ -301,7 +321,7 @@ seq([
       .mapResult(result => result)
       .mapResult(result => Future.fromResult(result))
       .mapResult(result => Future.fromResult(`${result} four`))
-      .mapResult(result => Future.initAsync(future => future.arrive(null, result)))
+      .mapResult(result => Future.initAsync(future => future.settle(null, result)))
 
     expect(mapped.deref()).to.equal(undefined)
 
@@ -325,9 +345,9 @@ seq([
       .mapResult(result => result)
       .mapResult(result => Future.fromResult(result))
       .mapResult(result => Future.fromError(new MockError(`${result} four`)))
-      .mapResult(result => Future.initAsync(future => future.arrive(null, result)))
+      .mapResult(result => Future.initAsync(future => future.settle(null, result)))
 
-    root.arrive(new MockError('one'))
+    root.settle(new MockError('one'))
 
     expect(mapped.deref()).to.equal(undefined)
 
@@ -352,11 +372,11 @@ seq([
       .mapResult(result => result)
       .mapResult(result => Future.fromResult(result))
       .mapResult(result => Future.fromResult(`${result} four`))
-      .mapResult(result => Future.initAsync(future => future.arrive(null, result)))
+      .mapResult(result => Future.initAsync(future => future.settle(null, result)))
 
     expect(mapped.deref()).to.equal(undefined)
 
-    root.arrive(null, 'one')
+    root.settle(null, 'one')
 
     const result = await race(
       resolve => mapped.mapResult(resolve),
@@ -368,7 +388,7 @@ seq([
 
 
   async function test_map_exception_async () {
-    const mapped = Future.initAsync(future => {future.arrive(new MockError('one'))})
+    const mapped = Future.initAsync(future => {future.settle(new MockError('one'))})
       .map((error, _result) => {throw new MockError(`${error.message} two`)})
       .mapError(error => {throw error})
       .mapError(error => Future.fromError(error))
@@ -388,7 +408,7 @@ seq([
 
 
   async function test_map_result_async () {
-    const mapped = Future.initAsync(future => {future.arrive(new MockError('one'))})
+    const mapped = Future.initAsync(future => {future.settle(new MockError('one'))})
       .map((error, _result) => {throw new MockError(`${error.message} two`)})
       .mapError(error => {throw error})
       .mapError(error => Future.fromError(error))
@@ -429,7 +449,7 @@ seq([
       })
     )).map(error => {throw error})
       .mapError(error => {throw error})
-      .mapError(error => Future.initAsync(future => future.arrive(error)))
+      .mapError(error => Future.initAsync(future => future.settle(error)))
       .mapResult(noop)
       .deinit()
   },
@@ -492,10 +512,10 @@ seq([
   },
 
 
-  async function test_nested_arrive_sync () {
+  async function test_nested_settle_sync () {
     const message = '<nested error>'
     const future = new Future()
-    future.arrive(Future.fromResult(Future.fromError(new MockError(message))))
+    future.settle(Future.fromResult(Future.fromError(new MockError(message))))
 
     const error = await race(
       resolve => future.mapError(resolve),
@@ -507,11 +527,11 @@ seq([
   },
 
 
-  async function test_nested_arrive_async () {
+  async function test_nested_settle_async () {
     const future = new Future()
 
-    future.arrive(Future.initAsync(future => {
-      future.arrive(null, Future.fromResult(Future.fromError(new MockError('<error>'))))
+    future.settle(Future.initAsync(future => {
+      future.settle(null, Future.fromResult(Future.fromError(new MockError('<error>'))))
     }))
 
     const error = await race(
@@ -523,10 +543,10 @@ seq([
   },
 
 
-  async function test_nested_arrive_result_as_error_sync () {
+  async function test_nested_settle_result_as_error_sync () {
     const future = new Future()
 
-    future.arrive(Future.fromResult(new MockError('<error>')))
+    future.settle(Future.fromResult(new MockError('<error>')))
 
     const error = await race(
       resolve => future.mapError(resolve),
@@ -537,10 +557,10 @@ seq([
   },
 
 
-  async function test_nested_arrive_error_as_result_sync () {
+  async function test_nested_settle_error_as_result_sync () {
     const future = new Future()
 
-    future.arrive(null, Future.fromError(new MockError('<error>')))
+    future.settle(null, Future.fromError(new MockError('<error>')))
 
     const error = await race(
       resolve => future.mapError(resolve),
@@ -551,11 +571,11 @@ seq([
   },
 
 
-  async function test_nested_arrive_result_as_error_async () {
+  async function test_nested_settle_result_as_error_async () {
     const future = new Future()
 
-    future.arrive(Future.initAsync(future => {
-      future.arrive(null, Future.fromResult(new MockError('<error>')))
+    future.settle(Future.initAsync(future => {
+      future.settle(null, Future.fromResult(new MockError('<error>')))
     }))
 
     const error = await race(
@@ -567,7 +587,7 @@ seq([
   },
 
 
-  async function test_nested_arrive_deinit () {
+  async function test_nested_settle_deinit () {
     Future.fromResult(Future.fromError(Future.init(() => (
       cancelableDelay(0, () => {
         console.error(new MockError(`must not be thrown`))
@@ -577,23 +597,23 @@ seq([
   },
 
 
-  async function test_nested_arrive_with_self () {
+  async function test_nested_settle_with_self () {
     const future = new Future()
-    expect(future.arrive.bind(future, null, future)).to.throw()
+    expect(future.settle.bind(future, null, future)).to.throw()
   },
 
 
-  async function test_nested_arrive_with_sync_error_and_result () {
+  async function test_nested_settle_with_sync_error_and_result () {
     const future = new Future()
-    future.arrive(new MockError('<error>'), Future.fromResult('<result>'))
+    future.settle(new MockError('<error>'), Future.fromResult('<result>'))
     expect(future.deref.bind(future)).to.throw(MockError)
   },
 
 
-  async function test_nested_arrive_with_future_error_and_future_result () {
+  async function test_nested_settle_with_future_error_and_future_result () {
     const future = new Future()
 
-    future.arrive(
+    future.settle(
       Future.fromError(new MockError('<error>')),
       Future.fromResult('<unused result>')
     )
@@ -614,7 +634,7 @@ seq([
 
   async function test_promise_catch () {
     const future = new Future()
-    await runAsync(() => future.arrive(new MockError('<promise error>')))
+    await runAsync(() => future.settle(new MockError('<promise error>')))
     expect(future.toPromise()).to.be.rejectedWith(MockError)
     expect(Future.from(new MockError('fail')).toPromise()).to.be.rejectedWith(MockError)
   },
@@ -623,7 +643,7 @@ seq([
   async function test_promise_then () {
     const future = new Future()
     const result = '<promise result>'
-    await runAsync(() => future.arrive(null, result))
+    await runAsync(() => future.settle(null, result))
     expect(Future.from(null, result).toPromise()).to.become(result)
   },
 
@@ -716,7 +736,7 @@ seq([
   async function test_all_from_sync_with_async_error () {
     const joined = Future.all([
       'one',
-      Future.initAsync(future => future.arrive(new MockError('three'))),
+      Future.initAsync(future => future.settle(new MockError('three'))),
     ])
 
     const error = await race(
@@ -732,8 +752,8 @@ seq([
   async function test_all_from_sync_with_async_mapped_results () {
     const joined = Future.all([
       'one',
-      Future.initAsync(future => future.arrive(null, 'two')),
-      Future.initAsync(future => future.arrive(null, 'three')).mapResult(id),
+      Future.initAsync(future => future.settle(null, 'two')),
+      Future.initAsync(future => future.settle(null, 'three')).mapResult(id),
     ])
 
     const result = await race(
@@ -827,7 +847,7 @@ seq([
     const joined = Future.race([
       Future.fromError(new MockError(message)),
       Future.initAsync(future => {
-        setImmediate(() => future.arrive(null, '<result>'))
+        setImmediate(() => future.settle(null, '<result>'))
       }),
     ])
 
@@ -847,7 +867,7 @@ seq([
     const joined = Future.race([
       Future.fromResult(value),
       Future.initAsync(future => {
-        setImmediate(() => future.arrive(new MockError('<error>')))
+        setImmediate(() => future.settle(new MockError('<error>')))
       }),
     ])
 
@@ -862,7 +882,7 @@ seq([
 
   async function test_race_deinits_losers_when_finished () {
     Future.race([
-      Future.init(future => future.arrive(null, '<result>')),
+      Future.init(future => future.settle(null, '<result>')),
       Future.init(() => cancelableDelay(0, () => {
         console.error(new MockError(`must not be thrown`))
         process.exit(1)
@@ -876,7 +896,7 @@ seq([
     const message = '<error>'
 
     const joined = Future.race([
-      Future.init(future => future.arrive(new MockError(message))),
+      Future.init(future => future.settle(new MockError(message))),
       Future.init(() => cancelableDelay(0, () => {
         console.error(new MockError(`must not be thrown`))
         process.exit(1)
@@ -902,7 +922,7 @@ seq([
 
     const weakBefore = future.weak()
 
-    future.arrive(new MockError('<error>'))
+    future.settle(new MockError('<error>'))
 
     expect(future.deref.bind(future)).to.throw(MockError, '', `
       Future error remains accessible after calling .weak()
@@ -936,7 +956,7 @@ seq([
 
     const weakBefore = future.weak()
 
-    future.arrive(null, result)
+    future.settle(null, result)
 
     expect(future.deref()).to.equal(result, '', `
       Future value remains accessible after calling .weak()
@@ -963,13 +983,13 @@ seq([
   },
 
 
-  async function test_weak_deinit_before_arrive () {
+  async function test_weak_deinit_before_settle () {
     const future = new Future()
 
     future.weak().deinit()
     future.weak().deinit()
 
-    future.arrive(new MockError('<sync error>'))
+    future.settle(new MockError('<sync error>'))
     expect(future.deref.bind(future)).to.throw(MockError)
   },
 
@@ -993,7 +1013,7 @@ seq([
     future.weak().deinit()
 
     await runAsync(() => {
-      future.arrive(null, result)
+      future.settle(null, result)
     })
 
     future.weak().deinit()
@@ -1013,7 +1033,7 @@ seq([
       process.exit(1)
     })
 
-    future.arrive(null, result)
+    future.settle(null, result)
 
     const weakAfter = future.weak()
 
@@ -1026,7 +1046,7 @@ seq([
 
     expect(weakResult).to.equal(
       result,
-      `.weak() futures created after .arrive() are unaffected by .deinit()`
+      `.weak() futures created after .settle() are unaffected by .deinit()`
     )
   },
 ])

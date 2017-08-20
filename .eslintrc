@@ -1,12 +1,13 @@
 {
   "parser": "babel-eslint",
-
+  "parserOptions": {
+    "sourceType": "script"
+  },
   "env": {
-    "browser": true,
+    "browser": false,
     "node": true,
     "es6": true
   },
-
   "rules": {
     // Logic
 
@@ -63,7 +64,7 @@
     "no-new-wrappers": "error",
     "no-octal": "error",
     "no-octal-escape": "error",
-    "no-param-reassign": "error",
+    // "no-param-reassign": "error",
     "no-proto": "error",
     "no-redeclare": "error",
     "no-return-assign": "error",
@@ -81,7 +82,7 @@
     "no-useless-return": "error",
     "no-with": "error",
     "radix": "error",
-    "require-await": "error",
+    // "require-await": "error",
     "init-declarations": ["error", "always"],
     "no-delete-var": "error",
     "no-restricted-globals": ["error",
@@ -101,9 +102,10 @@
     "no-undef-init": "off",
     "no-unused-vars": ["error", {"argsIgnorePattern": "^_.", "varsIgnorePattern": "^_."}],
     // "no-use-before-define": ["error", {"functions": false, "classes": false}],
-    "global-require": "error",
+    // "global-require": "error",
     "no-path-concat": "error",
     // "no-bitwise": "error",
+    "strict": ["error", "safe"],
 
     // Style
 
@@ -126,7 +128,7 @@
     "computed-property-spacing": "error",
     "func-call-spacing": "error",
     "func-names": ["error", "as-needed"],
-    "func-style": ["error", "declaration"],
+    // "func-style": ["error", "declaration"],
     // "id-length": ["error", {"min": 3}],
     "indent": ["error", 2, {"SwitchCase": 1}],
     // "key-spacing": ["error", {"align": "value"}],
@@ -165,9 +167,9 @@
     "arrow-parens": ["error", "as-needed"],
     "arrow-spacing": "error",
     "constructor-super": "error",
-    "generator-star-spacing": "error",
+    "generator-star-spacing": ["error", "after"],
     "no-class-assign": "error",
-    "no-confusing-arrow": "error",
+    // "no-confusing-arrow": "error",
     "no-const-assign": "error",
     "no-dupe-class-members": "error",
     "no-duplicate-imports": "error",
@@ -182,7 +184,7 @@
     "prefer-numeric-literals": "error",
     "prefer-spread": "error",
     "prefer-template": "error",
-    "require-yield": "error",
+    // "require-yield": "error",
     "rest-spread-spacing": "error",
     "template-curly-spacing": "error"
   }
