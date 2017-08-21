@@ -1089,30 +1089,28 @@ const {Future} = require('posterus')
 const {RenderQue} = require('prax')
 const {Xhttp} = require('xhttp')
 
-function httpRequest (params) {
+function httpRequest(params) {
   return Future.init(future => {
-    const xhr = Xhttp(params)
-      .onDone(result => {
-        // Pauses Prax-enabled React views
-        RenderQue.globalRenderQue.dam()
+    const xhr = Xhttp(params, result => {
+      // Pauses Prax-enabled React views
+      RenderQue.globalRenderQue.dam()
 
-        try {
-          if (result.ok) future.settle(null, result)
-          else future.settle(result)
+      try {
+        if (result.ok) future.settle(null, result)
+        else future.settle(result)
 
-          // Before we resume view updates,
-          // this attempts to finish all pending operations,
-          // including future callbacks that could update the app state
-          Future.scheduler.tick()
-        }
-        finally {
-          // Resumes view updates
-          RenderQue.globalRenderQue.flush()
-        }
-      })
-      .start()
+        // Before we resume view updates,
+        // this attempts to finish all pending operations,
+        // including future callbacks that could update the app state
+        Future.scheduler.tick()
+      }
+      finally {
+        // Resumes view updates
+        RenderQue.globalRenderQue.flush()
+      }
+    })
 
-    return function onDeinit () {
+    return function onDeinit() {
       xhr.onabort = null
       xhr.abort()
     }
