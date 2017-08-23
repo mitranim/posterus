@@ -1,6 +1,6 @@
 {
   "name": "posterus",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "dist/posterus",
   "description": "Composable async primitives (futures) with true cancelation and control over scheduling. Includes optional courotune implementation.",
   "keywords": [

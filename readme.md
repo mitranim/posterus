@@ -15,6 +15,10 @@ Includes optional support for coroutines. Similar to async/await, but based on
 futures, with implicit ownership and cancelation of in-progress work. See
 [`routine`](#routine).
 
+Supports interop with promises. Futures automatically
+[coerce](#futurethenonresolved) to promises and can be created [from
+promises](#futurefrompromisepromise).
+
 Check the [TLDR API](#tldr-api) and the [API](#api). Then read the
 [motivation](#why).
 
@@ -49,6 +53,7 @@ Check the [TLDR API](#tldr-api) and the [API](#api). Then read the
     * [`Future.from`](#futurefromerror-result)
     * [`Future.fromError`](#futurefromerrorerror)
     * [`Future.fromResult`](#futurefromresultresult)
+    * [`Future.fromPromise`](#futurefrompromisepromise)
     * [`Future.all`](#futureallvalues)
     * [`Future.race`](#futureracevalues)
     * [`Future.handleRejection`](#futurehandlerejectionfuture)
@@ -206,7 +211,8 @@ Workarounds tend to indicate broken APIs.
 Cancelation support diverges from the spec by requiring additional methods. Not
 sure you should maintain the appearance of being spec-compliant when you're not.
 Using a different interface reduces the chances of confusion, while [automatic
-coercion](#futurethenonresolved) to promises makes interop easy.
+coercion](#futurethenonresolved) to promises and conversion [from
+promises](#futurefrompromisepromise) makes interop easy.
 
 #### 2. Unicast is better than broadcast
 
@@ -950,6 +956,15 @@ constant value.
 Future.fromResult('<result>')
   .mapResult(result => someFutureOperation(result))
   .map(console.info.bind(console))
+```
+
+#### `Future.fromPromise(promise)`
+
+Utility for interop. Converts the given promise to a future.
+
+```js
+const promise = Promise.resolve('<value>')
+const future = Future.fromPromise(promise)
 ```
 
 #### `Future.all(values)`

@@ -183,6 +183,28 @@ seq([
   },
 
 
+  async function test_from_promise_ok () {
+    const result = '<value>'
+    const future = Future.fromPromise(Promise.resolve(result))
+    const value = await race(
+      resolve => future.mapResult(resolve),
+      () => {throw Error('timed out')}
+    )
+    expect(value).to.equal(result)
+    expect(future.deref()).to.equal(result)
+  },
+
+
+  async function test_from_promise_fail () {
+    const future = Future.fromPromise(Promise.reject(new MockError('<error>')))
+    const error = await race(
+      resolve => future.mapError(resolve),
+      () => {throw Error('timed out')}
+    )
+    expect(error).to.be.instanceof(MockError)
+  },
+
+
   async function test_init_error_sync () {
     const future = Future.init(future => {
       future.settle(new MockError('<error>'))
