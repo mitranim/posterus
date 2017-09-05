@@ -463,6 +463,62 @@ seq([
   },
 
 
+  async function test_finally_error () {
+    let called = false
+
+    const mapped = Future.fromError(new MockError('<fail>'))
+      .finally((err, res) => {
+        called = true
+        expect(err).to.be.instanceof(MockError)
+        expect(res).to.equal(undefined)
+      })
+
+    const error = await race(
+      resolve => mapped.mapError(resolve),
+      () => {throw Error('timed out')}
+    )
+
+    expect(error).to.be.instanceof(MockError)
+    expect(called).to.equal(true, 'Expected the finaliser to be called')
+  },
+
+
+  async function test_finally_result () {
+    let called = false
+    const result = '<result>'
+
+    const mapped = Future.fromResult(result)
+      .finally((err, res) => {
+        called = true
+        expect(err).to.equal(undefined)
+        expect(res).to.equal(result)
+      })
+
+    const res = await race(
+      resolve => mapped.mapResult(resolve),
+      () => {throw Error('timed out')}
+    )
+
+    expect(res).to.equal(result)
+    expect(called).to.equal(true, 'Expected the finaliser to be called')
+  },
+
+
+  async function test_finally_future_error () {
+    const mapped = Future.fromError(new MockError('<ignored error>')).finally(() => (
+      Future.fromError(new MockError('<actual error>'))
+    ))
+
+    const error = await race(
+      resolve => mapped.mapError(resolve),
+      () => {throw Error('timed out')}
+    )
+
+    expect(error).to.be.instanceof(MockError)
+    expect(error.message).to.equal('<actual error>')
+  },
+
+
   async function test_map_deinit_semi_async_parent () {
     Future.init(() => (
       cancelableDelay(0, () => {
@@ -511,6 +567,18 @@ seq([
       .mapError(error => {throw error})
       .mapResult(noop)
       .deinit()
+  },
+
+
+  async function test_finally_deinit () {
+    const mapped = Future.fromResult().finally(() => (
+      Future.init(() => cancelableDelay(0, () => {
+        console.error(new MockError(`must not be thrown`))
+        process.exit(1)
+      }))
+    ))
+    Future.scheduler.tick()
+    mapped.deinit()
   },
 
 

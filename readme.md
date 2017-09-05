@@ -39,7 +39,8 @@ Check the [TLDR API](#tldr-api) and the [API](#api). Then read the
     * [`future.settle`](#futuresettleerror-result)
     * [`future.map`](#futuremapmapper)
     * [`future.mapError`](#futuremaperrormapper)
-    * [`future.mapResult`](#futuremapresultresult)
+    * [`future.mapResult`](#futuremapresultmapper)
+    * [`future.finally`](#futurefinallyfinalise)
     * [`future.toPromise`](#futuretopromise)
     * [`future.catch`](#futurecatchonrejected)
     * [`future.then`](#futurethenonresolved)
@@ -425,7 +426,8 @@ Too long, didn't read?
 
 * transform with [`future.map`](#futuremapmapper),
   [`future.mapError`](#futuremaperrormapper),
-  [`future.mapResult`](#futuremapresultresult)
+  [`future.mapResult`](#futuremapresultmapper),
+  [`future.finally`](#futurefinallyfinalise)
 
 * combine with [`Future.all`](#futureallvalues),
   [`Future.race`](#futureracevalues)
@@ -673,7 +675,7 @@ Future.fromResult('<ok>')
   })
 ```
 
-#### `future.mapResult(result)`
+#### `future.mapResult(mapper)`
 
 where `mapper: ƒ(result): any`
 
@@ -689,7 +691,7 @@ Future.fromError(Error('<fail>'))
     process.exit(0)
   })
   .map((error, _result) => {
-    console.warn(error)  // '<fail>'
+    console.warn(error)  // Error('<fail>')
   })
 
 Future.fromResult('<ok>')
@@ -698,6 +700,41 @@ Future.fromResult('<ok>')
   })
   .map((_error, result) => {
     console.info(result)  // ['<ok>']
+  })
+```
+
+#### `future.finally(finalise)
+
+where `finalise: ƒ(error, result): any`
+
+Variant of [`.map()`](#futuremapmapper) that doesn't catch the error and doesn't
+change the result. Useful for cleanup operations.
+
+Attempts to mimic synchronous `try/finally` as closely as possible. An error
+produced by the finaliser overrides the previous error or result. Futures
+returned by the finaliser delay the outcome, just like normal synchonous
+operations in a `try/finally` block delay the return.
+
+Note: the finaliser won't run if the future is canceled. The owner of the future
+is responsible for running cleanup when canceling it.
+
+```js
+Future.fromResult('<result>')
+  .finally((error, result) => {
+    // Delays the outcome, but doesn't change it
+    return Future.fromResult('<ignored result>')
+  })
+  .mapResult(result => {
+    console.info(result)  // '<result>'
+  })
+
+Future.fromError(Error('<fail>'))
+  .finally(error => {
+    // Delays the outcome, but doesn't catch the error
+    return Future.fromResult('<ignored result>')
+  })
+  .mapError(error => {
+    console.warn(error)  // Error('<fail>')
   })
 ```
 
