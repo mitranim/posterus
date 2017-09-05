@@ -703,7 +703,7 @@ Future.fromResult('<ok>')
   })
 ```
 
-#### `future.finally(finalise)
+#### `future.finally(finalise)`
 
 where `finalise: ƒ(error, result): any`
 
