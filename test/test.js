@@ -39,9 +39,11 @@ function shortestCancelableDelay(fun, ...args) {
 
 // Not using Promise.race because it would keep the test-running process alive
 // for the duration of the timeout, even after it loses the race.
-function within500(fun, timeoutError) {
+function within500(fun) {
+  // Synchronous error for stacktrace
+  const trace = Error('timed out')
   return new Promise((resolve, reject) => {
-    const cancel = cancelableDelay(500, reject.bind(null, timeoutError))
+    const cancel = cancelableDelay(500, () => {reject(trace)})
     fun(function finish(value) {
       cancel()
       resolve(value)
@@ -128,14 +130,11 @@ startSequentially([
     future.settle(new MockError('<error>'), '<unused result>')
     const {onUnhandledRejection} = Future
     try {
-      const {rejectedFuture} = await within500(
-        finish => {
-          Future.onUnhandledRejection = rejectedFuture => {
-            finish({rejectedFuture})
-          }
-        },
-        Error('timed out')
-      )
+      const {rejectedFuture} = await within500(finish => {
+        Future.onUnhandledRejection = rejectedFuture => {
+          finish({rejectedFuture})
+        }
+      })
       expect(rejectedFuture).to.equal(future)
     }
     finally {
@@ -175,10 +174,7 @@ startSequentially([
     const inner = new Future()
     const outer = Future.fromError(inner)
     inner.settle(undefined, new MockError('<error>'))
-    const error = await within500(
-      finish => outer.mapError(finish),
-      Error('timed out')
-    )
+    const error = await within500(finish => outer.mapError(finish))
     expect(error).to.be.instanceof(MockError)
   },
 
@@ -193,10 +189,7 @@ startSequentially([
   async function test_from_result_nested() {
     const result = '<result>'
     const future = Future.fromResult(Future.fromResult(result))
-    const value = await within500(
-      finish => future.mapResult(finish),
-      Error('timed out')
-    )
+    const value = await within500(finish => future.mapResult(finish))
     expect(value).to.equal(result)
   },
 
@@ -217,12 +210,7 @@ startSequentially([
       .mapResult(result => Future.fromError(new MockError(`${result} four`)))
 
     expect(descendant.deref()).to.equal(undefined)
-
-    const error = await within500(
-      finish => descendant.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => descendant.mapError(finish))
     expect(error).to.be.instanceof(MockError)
     expect(error.message).to.equal('one two three four')
   },
@@ -241,12 +229,7 @@ startSequentially([
       .mapResult(result => Future.fromResult(`${result} four`))
 
     expect(descendant.deref()).to.equal(undefined)
-
-    const result = await within500(
-      finish => descendant.mapResult(finish),
-      Error('timed out')
-    )
-
+    const result = await within500(finish => descendant.mapResult(finish))
     expect(result).to.equal('one two three four')
   },
 
@@ -266,12 +249,7 @@ startSequentially([
     ancestor.settle(new MockError('one'))
 
     expect(descendant.deref()).to.equal(undefined)
-
-    const error = await within500(
-      finish => descendant.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => descendant.mapError(finish))
     expect(error).to.be.instanceof(MockError)
     expect(error.message).to.equal('one two three four')
   },
@@ -290,14 +268,9 @@ startSequentially([
       .mapResult(result => Future.fromResult(`${result} four`))
 
     expect(descendant.deref()).to.equal(undefined)
-
     ancestor.settle(null, 'one')
 
-    const result = await within500(
-      finish => descendant.mapResult(finish),
-      Error('timed out')
-    )
-
+    const result = await within500(finish => descendant.mapResult(finish))
     expect(result).to.equal('one two three four')
   },
 
@@ -317,11 +290,7 @@ startSequentially([
       .mapResult(result => Future.fromResult(result))
       .mapResult(result => {throw new MockError(`${result} four`)})
 
-    const error = await within500(
-      finish => descendant.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => descendant.mapError(finish))
     expect(error).to.be.instanceof(MockError)
     expect(error.message).to.equal('one two three four')
   },
@@ -342,11 +311,7 @@ startSequentially([
       .mapResult(result => Future.fromResult(result))
       .mapResult(result => `${result} four`)
 
-    const result = await within500(
-      finish => descendant.mapResult(finish),
-      Error('timed out')
-    )
-
+    const result = await within500(finish => descendant.mapResult(finish))
     expect(result).to.equal('one two three four')
   },
 
@@ -357,11 +322,7 @@ startSequentially([
       .mapResult(result => `${result} three`)
       .mapError(error => `${error.message} four`)
 
-    const result = await within500(
-      finish => descendant.mapResult(finish),
-      Error('timed out')
-    )
-
+    const result = await within500(finish => descendant.mapResult(finish))
     expect(result).to.equal('one four')
   },
 
@@ -376,11 +337,7 @@ startSequentially([
         expect(res).to.equal(undefined)
       })
 
-    const error = await within500(
-      finish => descendant.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => descendant.mapError(finish))
     expect(error).to.be.instanceof(MockError)
     expect(called).to.equal(true, 'Expected the finaliser to be called')
   },
@@ -397,11 +354,7 @@ startSequentially([
         expect(res).to.equal(result)
       })
 
-    const res = await within500(
-      finish => descendant.mapResult(finish),
-      Error('timed out')
-    )
-
+    const res = await within500(finish => descendant.mapResult(finish))
     expect(res).to.equal(result)
     expect(called).to.equal(true, 'Expected the finaliser to be called')
   },
@@ -411,12 +364,7 @@ startSequentially([
     const descendant = Future.fromError(new MockError('<ignored error>')).finally(() => (
       Future.fromError(new MockError('<actual error>'))
     ))
-
-    const error = await within500(
-      finish => descendant.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => descendant.mapError(finish))
     expect(error).to.be.instanceof(MockError)
     expect(error.message).to.equal('<actual error>')
   },
@@ -425,10 +373,7 @@ startSequentially([
   async function test_deinit_calls_mapper_with_error() {
     const future = new Future()
     future.deinit()
-    const error = await within500(
-      finish => future.mapError(finish),
-      Error('timed out')
-    )
+    const error = await within500(finish => future.mapError(finish))
     expect(error).to.be.instanceof(Error)
     expect(error.message).to.equal(DEINIT_MESSAGE)
   },
@@ -468,12 +413,9 @@ startSequentially([
 
     ancestor.deinit()
     ancestor.settle(undefined, '<ignored result>')
-    expect(descendant.deref()).to.equal(undefined)
 
-    await await within500(
-      finish => descendant.mapError(finish),
-      Error('timed out')
-    )
+    expect(descendant.deref()).to.equal(undefined)
+    await within500(finish => descendant.mapError(finish))
     expect(() => descendant.deref()).to.throw(Error, DEINIT_MESSAGE)
   },
 
@@ -482,10 +424,7 @@ startSequentially([
     const ancestor = new Future()
     const descendant = ancestor.mapResult(result => result)
     ancestor.deinit()
-    const error = await within500(
-      finish => descendant.mapError(finish),
-      Error('timed out')
-    )
+    const error = await within500(finish => descendant.mapError(finish))
     expect(error).to.be.instanceof(Error)
     expect(error.message).to.equal(DEINIT_MESSAGE)
   },
@@ -509,11 +448,7 @@ startSequentially([
     const future = new Future()
     future.settle(Future.fromResult(Future.fromError(new MockError(message))))
 
-    const error = await within500(
-      finish => future.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => future.mapError(finish))
     expect(error).to.be.instanceof(MockError)
     expect(error.message).to.equal(message)
   },
@@ -526,40 +461,23 @@ startSequentially([
       inner.settle(null, Future.fromResult(Future.fromError(new MockError('<error>'))))
     })
     outer.settle(inner)
-
-    const error = await within500(
-      finish => outer.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => outer.mapError(finish))
     expect(error).to.be.instanceof(MockError)
   },
 
 
   async function test_nested_settle_result_as_error_sync() {
     const future = new Future()
-
     future.settle(Future.fromResult(new MockError('<error>')))
-
-    const error = await within500(
-      finish => future.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => future.mapError(finish))
     expect(error).to.be.instanceof(MockError)
   },
 
 
   async function test_nested_settle_error_as_result_sync() {
     const future = new Future()
-
     future.settle(null, Future.fromError(new MockError('<error>')))
-
-    const error = await within500(
-      finish => future.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => future.mapError(finish))
     expect(error).to.be.instanceof(MockError)
   },
 
@@ -571,12 +489,7 @@ startSequentially([
       inner.settle(null, Future.fromResult(new MockError('<error>')))
     })
     outer.settle(inner)
-
-    const error = await within500(
-      finish => outer.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => outer.mapError(finish))
     expect(error).to.be.instanceof(MockError)
   },
 
@@ -606,17 +519,11 @@ startSequentially([
 
   async function test_nested_settle_with_future_error_and_future_result() {
     const future = new Future()
-
     future.settle(
       Future.fromError(new MockError('<error>')),
       Future.fromResult('<unused result>')
     )
-
-    const error = await within500(
-      finish => future.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => future.mapError(finish))
     expect(error).to.be.instanceof(MockError)
   },
 
@@ -624,10 +531,7 @@ startSequentially([
   async function test_from_promise_ok() {
     const result = '<value>'
     const future = Future.fromPromise(Promise.resolve(result))
-    const value = await within500(
-      finish => future.mapResult(finish),
-      Error('timed out')
-    )
+    const value = await within500(finish => future.mapResult(finish))
     expect(value).to.equal(result)
     expect(future.deref()).to.equal(result)
   },
@@ -635,10 +539,7 @@ startSequentially([
 
   async function test_from_promise_fail() {
     const future = Future.fromPromise(Promise.reject(new MockError('<error>')))
-    const error = await within500(
-      finish => future.mapError(finish),
-      Error('timed out')
-    )
+    const error = await within500(finish => future.mapError(finish))
     expect(error).to.be.instanceof(MockError)
   },
 
@@ -678,12 +579,7 @@ startSequentially([
 
   async function test_all_empty() {
     const joined = Future.all([])
-
-    const result = await within500(
-      finish => joined.mapResult(finish),
-      Error('timed out')
-    )
-
+    const result = await within500(finish => joined.mapResult(finish))
     expect(result).to.deep.equal([])
   },
 
@@ -693,12 +589,7 @@ startSequentially([
       Future.fromError(new MockError('<error one>')),
       Future.fromError(new MockError('<error two>')),
     ])
-
-    const error = await within500(
-      finish => joined.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => joined.mapError(finish))
     expect(error).to.be.instanceof(MockError)
     expect(error.message).to.equal('<error one>')
   },
@@ -706,24 +597,14 @@ startSequentially([
 
   async function test_all_from_sync_results() {
     const joined = Future.all(['one', Future.fromResult('two')])
-
-    const result = await within500(
-      finish => joined.mapResult(finish),
-      Error('timed out')
-    )
-
+    const result = await within500(finish => joined.mapResult(finish))
     expect(result).to.deep.equal(['one', 'two'])
   },
 
 
   async function test_all_from_sync_plain_results() {
     const joined = Future.all(['one', 'two'])
-
-    const result = await within500(
-      finish => joined.mapResult(finish),
-      Error('timed out')
-    )
-
+    const result = await within500(finish => joined.mapResult(finish))
     expect(result).to.deep.equal(['one', 'two'])
   },
 
@@ -734,12 +615,7 @@ startSequentially([
       Future.fromResult('two'),
       Future.fromError(new MockError('three')),
     ])
-
-    const error = await within500(
-      finish => joined.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => joined.mapError(finish))
     expect(error).to.be.instanceof(MockError)
     expect(error.message).to.equal('three')
   },
@@ -750,14 +626,8 @@ startSequentially([
     setImmediate(() => {
       inner.settle(new MockError('three'))
     })
-
     const joined = Future.all(['one', inner])
-
-    const error = await within500(
-      finish => joined.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => joined.mapError(finish))
     expect(error).to.be.instanceof(MockError)
     expect(error.message).to.equal('three')
   },
@@ -775,12 +645,7 @@ startSequentially([
     })
 
     const joined = Future.all(['one', innerTwo, innerThree.mapResult(id)])
-
-    const result = await within500(
-      finish => joined.mapResult(finish),
-      Error('timed out')
-    )
-
+    const result = await within500(finish => joined.mapResult(finish))
     expect(result).to.deep.equal(['one', 'two', 'three'])
   },
 
@@ -830,11 +695,7 @@ startSequentially([
       Future.fromError(new MockError(message)),
     ])
 
-    const error = await within500(
-      finish => joined.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => joined.mapError(finish))
     expect(error).to.be.instanceof(MockError)
     expect(error.message).to.equal(message)
   },
@@ -842,41 +703,25 @@ startSequentially([
 
   async function test_race_empty() {
     const joined = Future.race([])
-
-    const result = await within500(
-      finish => joined.mapResult(finish),
-      Error('timed out')
-    )
-
+    const result = await within500(finish => joined.mapResult(finish))
     expect(result).to.equal(undefined)
   },
 
 
   async function test_race_with_sync_plain_results() {
     const joined = Future.race(['one', 'two'])
-
-    const result = await within500(
-      finish => joined.mapResult(finish),
-      Error('timed out')
-    )
-
+    const result = await within500(finish => joined.mapResult(finish))
     expect(result).to.equal('one')
   },
 
 
   async function test_race_with_plain_result_and_error() {
     const value = '<result>'
-
     const joined = Future.race([
       value,
       new MockError('<error>'),
     ])
-
-    const result = await within500(
-      finish => joined.mapResult(finish),
-      Error('timed out')
-    )
-
+    const result = await within500(finish => joined.mapResult(finish))
     expect(result).to.equal(value)
   },
 
@@ -894,11 +739,7 @@ startSequentially([
       inner,
     ])
 
-    const error = await within500(
-      finish => joined.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => joined.mapError(finish))
     expect(error).to.be.instanceof(MockError)
     expect(error.message).to.equal(message)
   },
@@ -906,7 +747,6 @@ startSequentially([
 
   async function test_race_with_sync_result_and_async_error() {
     const value = '<result>'
-
     const inner = new Future()
     setImmediate(() => {
       inner.settle(new MockError('<error>'))
@@ -917,11 +757,7 @@ startSequentially([
       inner,
     ])
 
-    const result = await within500(
-      finish => joined.mapResult(finish),
-      Error('timed out')
-    )
-
+    const result = await within500(finish => joined.mapResult(finish))
     expect(result).to.equal(value)
   },
 
@@ -961,11 +797,7 @@ startSequentially([
       Future.fromResult().finally(cancelFour),
     ])
 
-    const error = await within500(
-      finish => joined.mapError(finish),
-      Error('timed out')
-    )
-
+    const error = await within500(finish => joined.mapError(finish))
     expect(error).to.be.instanceof(MockError)
     expect(error.message).to.equal(message)
   },
@@ -973,7 +805,6 @@ startSequentially([
 
   async function test_weak_with_error() {
     const future = new Future()
-
     const weakBefore = future.weak()
 
     future.settle(new MockError('<error>'))
@@ -982,22 +813,13 @@ startSequentially([
       Future error remains accessible after calling .weak()
     `)
 
-    const weakError = await within500(
-      finish => weakBefore.mapError(finish),
-      Error('timed out')
-    )
+    const weakError = await within500(finish => weakBefore.mapError(finish))
     expect(weakError).to.be.instanceof(MockError)
 
-    const eventual = within500(
-      finish => future.mapError(finish),
-      Error('timed out')
-    )
+    const eventual = within500(finish => future.mapError(finish))
 
     const weakAfter = future.weak()
-    const weakErrorAfter = await within500(
-      finish => weakAfter.mapError(finish),
-      Error('timed out')
-    )
+    const weakErrorAfter = await within500(finish => weakAfter.mapError(finish))
     expect(weakErrorAfter).to.be.instanceof(MockError)
 
     expect(await eventual).to.be.instanceof(MockError, '', `
@@ -1008,9 +830,7 @@ startSequentially([
 
   async function test_weak_with_result() {
     const result = '<result>'
-
     const future = new Future()
-
     const weakBefore = future.weak()
 
     future.settle(null, result)
@@ -1019,22 +839,13 @@ startSequentially([
       Future value remains accessible after calling .weak()
     `)
 
-    const weakResult = await within500(
-      finish => weakBefore.mapResult(finish),
-      Error('timed out')
-    )
+    const weakResult = await within500(finish => weakBefore.mapResult(finish))
     expect(weakResult).to.equal(result)
 
-    const eventual = within500(
-      finish => future.mapResult(finish),
-      Error('timed out')
-    )
+    const eventual = within500(finish => future.mapResult(finish))
 
     const weakAfter = future.weak()
-    const weakResultAfter = await within500(
-      finish => weakAfter.mapResult(finish),
-      Error('timed out')
-    )
+    const weakResultAfter = await within500(finish => weakAfter.mapResult(finish))
     expect(weakResultAfter).to.equal(result)
 
     expect(await eventual).to.equal(result, '', `
@@ -1045,10 +856,8 @@ startSequentially([
 
   async function test_weak_deinit_before_settle() {
     const future = new Future()
-
     future.weak().deinit()
     future.weak().deinit()
-
     future.settle(new MockError('<sync error>'))
     expect(() => future.deref()).to.throw(MockError)
   },
@@ -1057,12 +866,8 @@ startSequentially([
   async function test_weak_after_deinit() {
     const future = new Future()
     future.deinit()
-
     const weak = future.weak()
-    const weakError = await within500(
-      finish => weak.mapError(finish),
-      Error('timed out')
-    )
+    const weakError = await within500(finish => weak.mapError(finish))
     expect(weakError).to.be.instanceof(Error)
     expect(weakError.message).to.equal(DEINIT_MESSAGE)
   },
@@ -1070,9 +875,7 @@ startSequentially([
 
   async function test_weaks_dont_deinit_strong() {
     const result = '<async result>'
-
     const parent = new Future()
-
     const child = parent.finally(function fatalFailure(error, result) {
       if (!result) {
         console.error(new MockError(`must not be thrown`))
@@ -1086,10 +889,7 @@ startSequentially([
     await shortDelay()
     parent.settle(null, result)
 
-    const finished = await within500(
-      finish => child.mapResult(finish),
-      Error('timed out')
-    )
+    const finished = await within500(finish => child.mapResult(finish))
 
     child.weak().deinit()
     child.weak().deinit()
@@ -1121,20 +921,14 @@ startSequentially([
     // should be a noop
     future.deinit()
 
-    const weakResultBefore = await within500(
-      finish => weakBefore.mapResult(finish),
-      Error('timed out')
-    )
+    const weakResultBefore = await within500(finish => weakBefore.mapResult(finish))
     expect(weakResultBefore).to.equal(
       result,
       `.weak() futures created before settling are unaffected by .deinit()`
     )
 
     const weakAfter = future.weak()
-    const weakResultAfter = await within500(
-      finish => weakAfter.mapResult(finish),
-      Error('timed out')
-    )
+    const weakResultAfter = await within500(finish => weakAfter.mapResult(finish))
     expect(weakResultAfter).to.equal(
       result,
       `.weak() futures created after settling and deiniting receive the settled result`
