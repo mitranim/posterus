@@ -8,8 +8,8 @@ Posterus also exposes its inner [scheduling](#futurescheduler) capabilities,
 allowing you to "opt out" of asynchrony when needed ([motivating
 example](#schedulertick)).
 
-Lightweight (≈ 7 KB minified + 1 KB dependency), with solid performance (much
-more efficient than "native" promises).
+Lightweight: ≈ 7 KB minified + 1 KB dependency, with solid performance: much
+more efficient than "native" promises.
 
 Includes optional support for coroutines. Similar to async/await, but based on
 futures, with implicit ownership and cancelation of in-progress work. See
@@ -40,7 +40,7 @@ Check the [TLDR API](#tldr-api) and the [API](#api). Then read the
     * [`future.map`](#futuremapmapper)
     * [`future.mapError`](#futuremaperrormapper)
     * [`future.mapResult`](#futuremapresultmapper)
-    * [`future.finally`](#futurefinallyfinalise)
+    * [`future.finally`](#futurefinallyfinalize)
     * [`future.toPromise`](#futuretopromise)
     * [`future.catch`](#futurecatchonrejected)
     * [`future.then`](#futurethenonresolved)
@@ -49,8 +49,6 @@ Check the [TLDR API](#tldr-api) and the [API](#api). Then read the
     * [`future.deref`](#futurederef)
     * [`future.deinit`](#futuredeinit)
   * [Future Statics](#future-statics)
-    * [`Future.init`](#futureinitiniter)
-    * [`Future.initAsync`](#futureinitasynciniter)
     * [`Future.from`](#futurefromerror-result)
     * [`Future.fromError`](#futurefromerrorerror)
     * [`Future.fromResult`](#futurefromresultresult)
@@ -65,6 +63,7 @@ Check the [TLDR API](#tldr-api) and the [API](#api). Then read the
     * [`scheduler.deinit`](#schedulerdeinit)
   * [`isFuture`](#isfuturevalue)
   * [`routine`](#routine)
+* [Changelog](#changelog)
 * [Misc](#misc)
 
 ---
@@ -73,8 +72,8 @@ Check the [TLDR API](#tldr-api) and the [API](#api). Then read the
 
 ### Why cancelation?
 
-Humans change their minds all the time. Many behaviors we consider intuitive
-rely on some form of cancelation.
+Humans and even programs change their minds all the time. Many behaviors we
+consider intuitive rely on some form of cancelation.
 
   * Start playing a video, then hit stop. Should it finish playing?
 
@@ -94,10 +93,10 @@ equally out of reach.
 
 Synchronous code tends to be a sequence of blocking operations, with no room for
 changing one's mind. This makes it inherently unresponsive and therefore unfit
-for user-driven programs. Said programs end up using event loops and/or
-multithreading, inherently asynchronous techniques. The asynchrony is how you
-end up needing promises, responding to a fickle user is how you end up needing
-cancelation, and being responsive is how you're _able_ to cancel.
+for user-driven programs. Said programs end up using multithreading, event
+loops, and other inherently asynchronous techniques. The asynchrony is how you
+end up with abstractions like promises, responding to a fickle user is how you
+end up needing cancelation, and being responsive is how you're _able_ to cancel.
 
 Sync and async programming are inherently complementary. For invididual
 operations, we tend to think in sequential terms. For systems, we tend to think
@@ -131,7 +130,7 @@ function after(time) {
 
 Timeout wins → delayed operation runs anyway. Is that what we wanted?
 
-Now, with cancelable futures (easy, works):
+Now, with cancelable futures (works):
 
 ```js
 const {Future} = require('posterus')
@@ -144,7 +143,9 @@ Future.race([
 ])
 
 function after(time) {
-  return Future.init(future => timeout(time, future.settle.bind(future)))
+  const future = new Future()
+  const cancel = timeout(time, () => {future.settle()})
+  return future.finally(cancel)
 }
 
 function timeout(time, fun, ...args) {
@@ -159,7 +160,7 @@ Timeout wins → delayed operation doesn't run.
 Suppose we update search results on a webpage. The user types, we make requests
 and render the results. The input might be debounced; it doesn't matter.
 
-With promises:
+With regular callbacks or promises:
 
 ```js
 function onInput() {
@@ -175,7 +176,7 @@ Eventually, this happens:
 After briefly rendering results from request 2, the page reverts to the results
 from request 1 that arrived out of order. Is that what we wanted?
 
-Now, let's use futures, and properly overwrite the previous request:
+Instead, we could wrap HTTP requests in futures, which support cancelation:
 
 ```js
 function onInput() {
@@ -184,7 +185,7 @@ function onInput() {
 }
 ```
 
-Now there's no race condition.
+Now there's no race.
 
 This could have used `XMLHttpRequest` objects and callbacks, but it shows why
 cancelation is a prerequisite for correct async programming.
@@ -203,7 +204,7 @@ const cancel = () => {canceled = true}
 
 Live example from the Next.js source: https://github.com/zeit/next.js/blob/708193d2273afc7377df35c61f4eda022b040c05/lib/router/router.js#L298
 
-Workarounds tend to indicate broken APIs.
+Workarounds tend to indicate poor API design.
 
 ### Why not extend standard promises?
 
@@ -215,16 +216,18 @@ Using a different interface reduces the chances of confusion, while [automatic
 coercion](#futurethenonresolved) to promises and conversion [from
 promises](#futurefrompromisepromise) makes interop easy.
 
-#### 2. Unicast is better than broadcast
+#### 2. Unicast is a better default than broadcast
 
-Promises are _broadcast_: they have multiple consumers. Posterus rejects this
-idea and chooses _unicast_: futures have one consumer/owner.
+Promises are _broadcast_: they have multiple consumers. Posterus defaults
+to _unicast_: futures have one consumer/owner, with broadcast as an option.
 
 Broadcast promises can support cancelation by using refcounting, like Bluebird.
-It works, but at the cost of compromises and edge cases. Adopting a unicast
+It works, but at the cost of compromises and edge cases. Defaulting to a unicast
 design lets you avoid them and greatly simplify the implementation.
 
 See [Unicast vs Broadcast](#unicast-vs-broadcast) for a detailed explanation.
+
+Posterus provides broadcast as an [opt-in](#futureweak).
 
 #### 3. Annoyances in the standard
 
@@ -284,8 +287,8 @@ Let's define our terms. What Posterus calls a "future", the
 that has only one consumer. GTOR calls this _unicast_ as opposed to promises
 which have multiple consumers and are therefore _broadcast_.
 
-Why are promises broadcast, and Posterus unicast? My thoughts are theoretical
-and vague. Could be completely wrong. Let's hear them anyway.
+Why are promises broadcast, and Posterus unicast? My reasons are subjective and
+vague.
 
 Async primitives should be modeled after synchronous analogs:
 
@@ -327,7 +330,7 @@ fn main() {
   struct Resource{}
 
   // This compiles if `Resource` derives the `Copy` trait,
-  // but types with destructors don't have that luxury
+  // but types with destructors don't have that option
 }
 ```
 
@@ -360,25 +363,25 @@ Agent](https://mitranim.com/espo/#-agent-value-).
 
 This is not specifically about Posterus, but seems to be a common sentiment.
 
-Since Rx observables are a superset of promises and streams, some people suggest
-using them for everything. I find this view baffling. It implies the desire for
-more API surface, more freedom for things to go wrong, and I don't know what to
-tell these people.
+Since Rx observables appear to be a superset of promises and streams, some
+people suggest using them for everything. I find this view baffling. It implies
+the desire for more layers of crap, more API surface, more freedom for things to
+go wrong, and I don't know what to tell these people.
 
-Let's try a concrete example: they're incompatible with coroutines. Coroutines
-map asynchronous primitives to synchronous constructs. Promises map to
-constants, streams map to iterators. Since an Rx observable is a superset of
-both, you can't map it to either without downcasting it to a promise or a
-stream, proving the need for these simpler primitives.
+One reason would be that observables are not a good building block for
+coroutines. Coroutines map asynchronous primitives to synchronous constructs.
+Promises map to constants, streams map to iterators. Since an Rx observable is a
+superset of both, you can't map it to either without downcasting it to a promise
+or a stream, proving the need for these simpler primitives.
 
 Another reason is API surface and learning curve. We need simple primitives for
-simple tasks, going to bigger primitives for specialised tasks. Promises are
+simple tasks, going to bigger primitives for specialized tasks. Promises are
 hard enough. Don't saddle a novice with mountainous amounts of crap when
 promises satisfy the use case.
 
 Since we're talking observables, here's a bonus: a [different
-breed](https://mitranim.com/espo/#-atom-value-) of observables that is actually
-useful for GUI apps. It enables [implicit GUI
+breed](https://mitranim.com/espo/#-atom-value-) of observables especially fit
+for GUI apps. It enables [implicit GUI
 reactivity](https://mitranim.com/prax/api#-praxcomponent-) and automatic
 resource management with deterministic destructors (see above).
 
@@ -396,6 +399,10 @@ other [promise annoyances](#3-annoyances-in-the-standard)?
   * At the moment of writing, Bluebird doesn't cancel promises that lose a
     `Promise.race`. I disagree with these semantics. Some use cases demand that
     losers be canceled. See the [timeout race example](#1-race-against-timeout).
+
+  * Since `0.3.0`, Posterus diverged even more by defining cancelation as, more
+    or less, "settling with error". It takes the view that user code must always
+    terminate.
 
 ---
 
@@ -420,60 +427,46 @@ const {Future} = require('posterus')
 Too long, didn't read?
 
 * create with [`new Future()`](#future),
-  [`Future.init`](#futureinitiniter),
   [`Future.from`](#futurefromerror-result),
   [`Future.fromResult`](#futurefromresultresult)
 
 * transform with [`future.map`](#futuremapmapper),
   [`future.mapError`](#futuremaperrormapper),
   [`future.mapResult`](#futuremapresultmapper),
-  [`future.finally`](#futurefinallyfinalise)
+  [`future.finally`](#futurefinallyfinalize)
 
 * combine with [`Future.all`](#futureallvalues),
   [`Future.race`](#futureracevalues)
 
 * cancel with [`future.deinit`](#futuredeinit)
 
+* interoperate with promises
+
 ```js
 const {Future} = require('posterus')
 
-const future = Future.init(future => {
-  // maybe async work, then:
-  future.settle(Error('<async error>'), '<unused result>')
-  return function onDeinit () {/* cancel async work here */}
-})
-.mapResult(result => Future.init(future => {
-  // maybe async work, then:
-  future.settle(null, '<async result>')
-  return function onDeinit () {/* cancel async work here */}
-}))
-.mapError(error => {
-  console.warn(error)
-  return '<replacement result>'
-})
-.map((error, result) => {
-  console.info(error, result)
-})
+const future = new Future()
 
-// this cancels the entire chain
-// including nested async work that may or may not have started
+// maybe async work, then:
+future.settle(Error('<async error>'), '<unused result>')
+
+future
+  .finally(function finalize () {/* cancel async work here */})
+  .mapError(error => {
+    console.warn(error)
+    return '<replacement result>'
+  })
+  .map((error, result) => {
+    console.info(error, result)
+  })
+
+// this settles the future with an error,
+// triggering the finalizer and the child error handlers
 future.deinit()
 
-Future.all([
-  '<plain>',
-  Future.initAsync(future => {
-    future.settle(null, '<async>')
-  }),
-])
-.mapResult(result => {
-  console.info(result)  // ['<plain>', '<async>']
-})
-
 Future.race([
-  Future.init(future => {
-    return function onDeinit () {
-      console.info('lost the race, canceling')
-    }
+  new Future().finally(function finalize(error) {
+    if (error) console.info('lost the race, canceling')
   }),
   Future.fromResult('<this one wins the race>'),
 ])
@@ -514,40 +507,35 @@ future.deinit()
 
 ### `Future()`
 
-Core constructor intended for lower-level use. Most of the time, you'll be using
-[`Future.init`](#futureinitiniter) or
-[`Future.initAsync`](#futureinitasynciniter), fully-fledged constructors with
-support for initialiser function and cancelation.
-
-Creates a pending future that can be finalised by calling
-[`.settle()`](#futuresettleerror-result) and/or canceled with
-[`.deinit()`](#futuredeinit).
+Creates a pending future that can be finalized with
+[`.settle()`](#futuresettleerror-result) or [`.deinit()`](#futuredeinit).
 
 ```js
 const {Future} = require('future')
 
 const future = new Future()
 
+const derived = future
+  .map((error, result) => {
+    console.info(error, result)
+  })
+  .mapResult(result => {
+    console.info(result)
+  })
+  .mapError(error => {
+    console.warn(error)
+  })
+
+// Eventually, trigger the chain:
 future.settle(null, '<result>')
-
-const derived = future.map((error, result) => {
-  console.info(error, result)
-})
-.mapResult(result => {
-  console.info(result)
-})
-.mapError(error => {
-  console.warn(error)
-})
-
-// cancels entire chain
+// or:
 derived.deinit()
 ```
 
 #### `future.settle(error, result)`
 
 Settles the future with the provided error and result. Similar to the `resolve`
-and `reject` callbacks in a Promise constructor, but as a public method,
+and `reject` callbacks in a `Promise` constructor, but as an instance method,
 combined into one "errback" signature. Can be called at any point after creating
 the future.
 
@@ -559,8 +547,8 @@ automatically "flattens", eventually resolving to a non-future.
 
 If the future has previosly been settled or deinited, this is a no-op.
 
-If the future has been previously mapped over, `.settle()` will propagate the
-result to the child future.
+If the future has been previously mapped over, `.settle()` and `.deinit()` will
+propagate the result to the child future.
 
 ```js
 // Will warn about unhandled rejection
@@ -581,17 +569,12 @@ future.mapResult(result => {
 
 // waits for provided future
 const future = new Future()
-future.settle(null, Future.initAsync(future => future.settle(null, '<async result>')))
+const inner = new Future()
+future.settle(null, inner)
 future.mapResult(result => {
   console.info(result)  // '<async result>'
 })
-
-// waits for provided future
-const future = new Future()
-future.settle(Future.initAsync(future => future.settle(Error('<async error>'))))
-future.mapError(error => {
-  console.warn(error)  // '<async error>'
-})
+inner.settle(null, '<async result>')
 ```
 
 When called after `.map()`, propagates error and result to child future:
@@ -619,8 +602,8 @@ Just like [`.settle()`](#futuresettleerror-result), this automatically
 "flattens" the futures provided by the mapper, eventually resolving to
 non-future values. This is known as "flatmap" in some languages.
 
-The newly created future assumes control of the original future and any
-intermediary futures, and will [`.deinit()`](#futuredeinit) them when canceled.
+The child future assumes control of the parent future and other ancestors and
+intermediaries, and will [`.deinit()`](#futuredeinit) them when canceled.
 
 This operation "consumes" the future, disallowing any further chainining from
 the same reference. In other words, each future can only have _one consumer_
@@ -631,23 +614,20 @@ All other chaining operations are defined in terms of `.map()` and share these
 characteristics.
 
 ```js
-Future.init(future => {
-  // maybe async work, then:
-  future.settle(null, '<message>')
-})
-// This could blow up the chain!
-.map((_error, result) => {
-  throw Error(result)
-})
-// This "catches" the error and converts it back into a result
-.map((error, result) => {
-  // The chain will automatically "flatten", waiting for this future
-  return Future.fromResult(error.message)
-})
-// Guaranteed no error
-.map((_error, result) => {
-  console.info(result)  // '<message>'
-})
+Future.fromResult('<message>')
+  // This could blow up the chain!
+  .map((_error, result) => {
+    throw Error(result)
+  })
+  // This "catches" the error and converts it back into a result
+  .map((error, result) => {
+    // The chain will automatically "flatten", waiting for this future
+    return Future.fromResult(error.message)
+  })
+  // Guaranteed no error
+  .map((_error, result) => {
+    console.info(result)  // '<message>'
+  })
 ```
 
 #### `future.mapError(mapper)`
@@ -703,20 +683,17 @@ Future.fromResult('<ok>')
   })
 ```
 
-#### `future.finally(finalise)`
+#### `future.finally(finalizer)`
 
-where `finalise: ƒ(error, result): any`
+where `finalizer: ƒ(error, result): any`
 
-Variant of [`.map()`](#futuremapmapper) that doesn't catch the error and doesn't
-change the result. Useful for cleanup operations.
+Variant of [`.map()`](#futuremapmapper) that doesn't change the result. Useful
+for cleanup operations.
 
-Attempts to mimic synchronous `try/finally` as closely as possible. An error
-produced by the finaliser overrides the previous error or result. Futures
-returned by the finaliser delay the outcome, just like normal synchonous
-operations in a `try/finally` block delay the return.
-
-Note: the finaliser won't run if the future is canceled. The owner of the future
-is responsible for running cleanup when canceling it.
+Mimics the synchronous `try/finally` as closely as possible. An error produced by
+the finalizer overrides the previous error or result. Futures returned by the
+finalizer delay the outcome, just like normal synchonous operations in a
+`try/finally` block delay the return, without changing it.
 
 ```js
 Future.fromResult('<result>')
@@ -738,28 +715,39 @@ Future.fromError(Error('<fail>'))
   })
 ```
 
+Use it for cleanup:
+
+```js
+const future = new Future()
+const timer = setTimeout(() => {
+  // async work
+  future.settle()
+})
+
+future
+  .finally(() => {clearTimeout(timer)})
+  .mapResult(() => {/* ... */})
+  .deinit()
+```
+
 #### `future.toPromise()`
 
-Adapter for promise compatibility. Consumes the future, returning a promise of
-its eventual result. Uses the standard `Promise` constructor, which must exist
-in the global environment.
+Consumes the future, returning a promise of its eventual result. Uses the
+standard `Promise` constructor, which must exist in the global environment.
 
-The original future can still be used for control; deiniting it will prevent the
-promise from being triggered.
+The original future can still be used for control; deiniting it will reject the
+promise.
 
 Note: if you want to "broadcast" a future to multiple consumers, use
 [`.weak()`](#futureweak) instead. `.toPromise()` is strictly less powerful and
 should only be used for promise compatibility.
 
-Note: `future.then()` and `future.catch()` automatically call this, coercing the
-future to a promise.
+Note: `future.then()` and `future.catch()` call this automatically.
 
 ```js
-const future = Future.initAsync(future => {
-  future.settle(null, '<async result>')
-})
+const future = Future.fromResult('<result>')
 
-const promise = future
+future
   .toPromise()
   .then(result => {
     console.info(result)
@@ -767,7 +755,7 @@ const promise = future
 
 promise instanceof Promise  // true
 
-future.deinit()  // frees resources, averts promise callbacks
+future.deinit()  // rejects the promise
 ```
 
 #### `future.catch(onRejected)`
@@ -808,7 +796,7 @@ branch0.deinit()
 ```
 
 Downstream cancelation from the parent affects all weak branches, but upstream
-cancelation terminates at the `.weak()` future:
+cancelation ends at the `.weak()` future:
 
     // weak branches from main trunk
     * - * - * - * - * - * - * - * - * - * - * - * - *
@@ -816,23 +804,24 @@ cancelation terminates at the `.weak()` future:
                                 ° - * - * - *
 
     // downstream
+    // × = settle with error, children may handle it
     .deinit() - × - × - × - × - × - × - × - × - × - ×
                                 × - × - × - × - × - × - × - ×
                                 × - × - × - ×
 
     // upstream
+    // × = settle with error, parents can't prevent it
     * - * - * - * - * - * - * - * - * - * - * - * - *
                                 ° - × - × - × - × - × - × - .deinit()
                                 ° - * - * - *
 
 #### `future.finishPending()`
 
-Attempts to finish the pending asynchronous operations on this particular
-future, _right now_. This includes:
+Attempts to finish all pending asynchronous operations on this particular future,
+_right now_. This includes:
 
-* unhandled rejection
-* `.map()` callback and propagation of error/result to child future, if any
-* [`Future.initAsync`](#futureinitasynciniter) initialiser
+  * unhandled rejection
+  * `.map()` callback and propagation of error/result to child future, if any
 
 Note: `.finishPending()` affects only the future it's called on. If you want to
 synchronously finish _all_ pending operations, call
@@ -843,24 +832,33 @@ synchronously finish _all_ pending operations, call
 Attempts to synchronously read the future's value. If pending, returns
 `undefined`. If rejected, throws the value. If resolved, returns the value.
 
-Intended to provide more control for esoteric use cases.
+Intended for more control in esoteric use cases.
 
 #### `future.deinit()`
 
-Deinitialises the future. Cancels any pending operations associated with it;
-calls its `onDeinit`, if any, to free resources; unchains and deinits all other
-futures related to it.
+Attempts to stop pending work. This has changed dramatically in `0.3.0`. Now,
+"cancelation" is defined like this:
 
-Cancelation propagates both upstream and downstream:
+  * settle the future and its children with an error
+  * synchronously deinit the parent future, if any (recursive)
+
+As a consequence, cancelation propagates to child futures like a normal error,
+and can be caught and handled.
+
+Since `0.3.0`, Posterus doesn't outright "cancel" any callbacks. You can count on
+your code to be called. Instead, deinit reroutes the code into the "error" path,
+both downstream and upstream, triggering it synchronously on the upstream side to
+ensure immediate cleanup.
 
 ```js
 // upstream cancelation
 
-const descendant = Future.init(future => {
-    // some async work, then:
-    future.settle(null, '<result>')
-    return function onDeinit () {/* cancel async work here */}
-  })
+const ancestor = new Future()
+// cancelable work
+const timer = setTimeout(() => {ancestor.settle(undefined, '<result>')})
+
+const descendant = ancestor
+  .finally(() => {clearTimeout(timer)})
   .map((error, result) => {
     console.info(error, result)
   })
@@ -870,15 +868,17 @@ descendant.deinit()
 
 // downstream cancelation
 
-const ancestor = Future.init(future => {
-  // some async work, then:
-  future.settle(null, '<result>')
-  return function onDeinit () {/* cancel async work here */}
-})
+const ancestor = new Future()
 
-ancestor.map((error, result) => {
-  console.info(error, result)
-})
+// cancelable work
+const timer = setTimeout(() => {ancestor.settle(undefined, '<result>')})
+
+ancestor
+  .finally(() => {clearTimeout(timer)})
+  .map((error, result) => {
+    // receives deinit error
+    console.info(error, result)
+  })
 
 ancestor.deinit()
 ```
@@ -892,74 +892,18 @@ You can also picture it like this:
     × - × - × - × - × - × - × - × - × - × - .deinit()
 
     // downstream cancelation
+    // can be handled by descendants
     .deinit() - × - × - × - × - × - × - × - × - × - ×
 
     // bidirectional cancelation
+    // can be handled by descendants
     × - × - × - × - × - .deinit() - × - × - × - × - ×
 
 ### Future Statics
 
-#### `Future.init(initer)`
-
-where `initer: ƒ(future): ?(deiniter: ƒ(): void)`
-
-Creates a new future and runs `initer` synchronously, before the end of the
-`Future.init` call. Returns the new future. The initer can resolve the future
-synchronously or asynchronously. An exception in the initer causes the future to
-be rejected.
-
-The initer can return a _deiniter_ function that will be called when the future
-is canceled via [`.deinit()`](#futuredeinit), either directly or as part of a
-chain.
-
-Similar to the `new Promise(...)` constructor, but with support for cancelation.
-
-```js
-Future.init(future => {
-  // runs immediately
-  future.settle(null, '<async result>')
-}).mapResult(console.info.bind(console))
-  .mapError(console.warn.bind(console))
-```
-
-Cancelation:
-
-```js
-Future.init(future => {
-  const timerId = setTimeout(() => {
-    future.settle(null, '<async result>')
-  })
-  return function onDeinit () {
-    clearTimeout.bind(null, timerId)
-  }
-}).mapResult(console.info.bind(console))
-  .mapError(console.warn.bind(console))
-  // calls onDeinit upstream
-  .deinit()
-```
-
-#### `Future.initAsync(initer)`
-
-where `initer: ƒ(future): ?(deiniter: ƒ(): void)`
-
-Similar to [`Future.init`](#futureinitiniter), but the initer runs
-asynchronously, after the call to `Future.initAsync` is finished.
-
-```js
-Future.initAsync(future => {
-  console.info('initing')
-  throw Error('<async init failure>')
-})
-
-future.deref()  // doesn't throw yet
-
-// 'initing'
-// unhandled rejection warning!
-```
-
 #### `Future.from(error, result)`
 
-Shortcut to creating a future that immediately settles with `error` and
+Shortcut for creating a future that immediately settles with `error` and
 `result`. Similar to `Promise.reject` and `Promise.resolve`, combined into one
 "errback" signature. Following the errback convention, the future will be
 rejected if `error` is truthy, and successfully resolved otherwise.
@@ -1007,78 +951,79 @@ const future = Future.fromPromise(promise)
 #### `Future.all(values)`
 
 Core composition tool, alongside [`Future.race`](#futureracevalues). Coerces
-`values` into futures, waits for them, and resolves with a list of their results
-or gets rejected with the first error. Basically like `Promise.all`, but with
-cancelation support.
+`values` into futures, waits for them, and is resolved with a list of their
+results or rejected with the first error. Basically like `Promise.all`, but with
+cancelation support:
 
-Cancelation support:
-
-* on [`.deinit()`](#futuredeinit), deinits all underlying futures
-* on error, deinits all underlying futures that are still pending
+  * on [`.deinit()`](#futuredeinit), deinits all underlying futures
+  * on error, deinits all underlying futures that are still pending
 
 ```js
 Future.all([
   '<plain>',
-  Future.initAsync(future => {
-    future.settle(null, '<async>')
-  }),
+  Future.fromResult('<sync>'),
+  Future.fromResult().map(() => '<async>'),
 ])
 .mapResult(result => {
-  console.info(result)  // ['<plain>', '<async>']
+  console.info(result)  // ['<plain>', '<sync>', '<async>']
 })
 
 Future.all([
   // Rest easy, this won't happen
-  Future.initAsync(() => {
+  Future.fromResult().mapResult(() => {
     console.error('Oh noes! Panic!')
     process.exit(1)
   }),
-  Future.fromError(Error('<early error>'))
+  Future.fromError(Error('<early error>')),
 ])
 .mapError(error => {
   console.warn(error)  // '<early error>'
 })
+
+Future.all([
+  // Rest easy, this won't happen
+  Future.fromResult().mapResult(() => {
+    console.error('Oh noes! Panic!')
+    process.exit(1)
+  }),
+])
+.deinit()
 ```
 
 #### `Future.race(values)`
 
 Core composition tool, alongside [`Future.all`](#futureallvalues). Coerces
-`values` into futures, waits for them, and resolves with the first result or
-gets rejected with the first error. Basically like `Promise.race`, but with
-cancelation support.
+`values` into futures, waits for them, and is resolved with the first result or
+rejected with the first error. Basically like `Promise.race`, but with
+cancelation support:
 
-Cancelation support:
-
-* on [`.deinit()`](#futuredeinit), deinits all underlying futures
-* on first result or error, deinits all underlying futures that are still pending
+  * on [`.deinit()`](#futuredeinit), deinits all underlying futures
+  * on first result or error, deinits all underlying futures that are still pending
 
 ```js
-Future.race([
-  Future.init(future => {
-    future.settle(null, '<faster result>')
-  }),
+// This won't blow up due to race cancelation
+const timer = setTimeout(() => {
+  console.error('Oh noes! We were too slow! Panic!')
+  process.exit(1)
+}, 50)
 
-  // No worries, this won't blow up
-  Future.init(future => {
-    const timerId = setTimeout(() => {
-      console.error('Oh noes! We were too slow! Panic!')
-      process.exit(1)
-    }, 50)
-    return function onDeinit () {
-      clearTimeout(timerId)
-    }
+Future.race([
+  Future.fromResult('<faster result>'),
+  new Future().finally(error => {
+    if (error) clearTimeout(timer)
   }),
 ])
 .mapResult(result => {
   console.info(result)  // '<faster result>'
 })
 
+// Neither will blow up
 Future.race([
-  Future.initAsync(() => {
+  Future.fromResult().map(() => {
     console.error(`I'm gonna blow up first!`)
     process.exit(1)
   }),
-  Future.initAsync(() => {
+  Future.fromResult().map(() => {
     console.error(`Imma make sure we blow up!`)
     process.exit(1)
   }),
@@ -1113,9 +1058,8 @@ demand synchronous execution.
 
 Asynchronous operations include:
 
-* unhandled rejections
-* `.map()` callbacks and propagation of results from parent to child futures
-* [`Future.initAsync`](#futureinitasynciniter) initialisers
+  * unhandled rejections
+  * `.map()` callbacks and propagation of results from parent to child futures
 
 `.tick()` is idempotent: it's ok to make redundant calls, or call it before the
 next pending tick.
@@ -1142,27 +1086,29 @@ const {RenderQue} = require('prax')
 const {Xhttp} = require('xhttp')
 
 function httpRequest(params) {
-  return Future.init(future => {
-    const xhr = Xhttp(params, result => {
-      // Pauses Prax-enabled React views
-      RenderQue.globalRenderQue.dam()
+  const future = new Future()
 
-      try {
-        if (result.ok) future.settle(null, result)
-        else future.settle(result)
+  const xhr = Xhttp(params, result => {
+    // Pauses Prax-enabled React views
+    RenderQue.globalRenderQue.dam()
 
-        // Before we resume view updates,
-        // this attempts to finish all pending operations,
-        // including future callbacks that could update the app state
-        Future.scheduler.tick()
-      }
-      finally {
-        // Resumes view updates
-        RenderQue.globalRenderQue.flush()
-      }
-    })
+    try {
+      if (result.ok) future.settle(null, result)
+      else future.settle(result)
 
-    return function onDeinit() {
+      // Before we resume view updates,
+      // this attempts to finish all pending operations,
+      // including future callbacks that could update the app state
+      Future.scheduler.tick()
+    }
+    finally {
+      // Resumes view updates
+      RenderQue.globalRenderQue.flush()
+    }
+  })
+
+  return future.finally(function finalize(error) {
+    if (error) {
       xhr.onabort = null
       xhr.abort()
     }
@@ -1234,6 +1180,46 @@ function* inner(input) {
 // Can abort work in progress
 future.deinit()
 ```
+
+---
+
+## Changelog
+
+### `0.3.0`: breaking changes focused on termination
+
+Big conceptual revision. Now, "cancelation" is basically like settling the
+future chain with an error. Posterus no longer cancels your callbacks, so
+you can always count on termination.
+
+This also removes `Future.init`, `Future.initAsync`, and special cancelation-only
+callbacks they supported. They become unnecessary when cancelation is just an
+error: deinit logic can be put in a `.finally` callback. When deiniting a
+descendant future, callbacks on ancestor futures are called synchronously to
+ensure immediate cleanup.
+
+The new behavior better aligns with synchronous code. Consider Java threads and
+futures: `thread.stop()`, `thread.interrupt()`, `future.cancel()` throw an
+exception into a thread, moving execution to the nearest `catch` or `finally`
+block. It doesn't completely stop the thread's code from executing, and there
+aren't any special cancelation-only blocks of code.
+
+Other changes and improvements:
+
+  * `.all` and `.race` created from deinited futures will now be settled with an
+    error, rather than hung up
+
+  * empty `.race([])` is now immediately settled with `undefined`, rather than
+    hungs up
+
+  * deiniting a future after it's settled no longer prevents callbacks from
+    running; instead, it suppresses the rejection handler and deinits its
+    ancestors, if any
+
+  * deiniting after settling is now a no-op
+
+  * weaks created before and after settling a future settle in the same order
+
+  * better compatibility with subclassing
 
 ---
 

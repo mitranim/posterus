@@ -7,7 +7,7 @@
 const $ = require('gulp-load-plugins')()
 const del = require('del')
 const gulp = require('gulp')
-const {spawn} = require('child_process')
+const {fork} = require('child_process')
 
 /**
  * Globals
@@ -18,8 +18,6 @@ const distDir = 'dist'
 const libFiles = 'lib/**/*.js'
 const distFiles = 'dist/**/*.js'
 const testFiles = 'test/**/*.js'
-
-const [testExecutable, ...testArgs] = require('./package').scripts.test.split(/\s/g)
 
 const GulpErr = msg => ({showStack: false, toString: () => msg})
 
@@ -55,6 +53,10 @@ gulp.task('compile', () => (
 
 let testProc = null
 
+process.once('exit', () => {
+  if (testProc) testProc.kill()
+})
+
 gulp.task('test', done => {
   // Still running, let it finish
   if (testProc && testProc.exitCode == null) {
@@ -62,14 +64,7 @@ gulp.task('test', done => {
     return
   }
 
-  testProc = spawn(testExecutable, testArgs)
-  testProc.stdout.pipe(process.stdout)
-  testProc.stderr.pipe(process.stderr)
-
-  testProc.once('error', err => {
-    testProc.kill()
-    done(err)
-  })
+  testProc = fork('./test/test')
 
   testProc.once('exit', code => {
     done(code ? GulpErr(`Test failed with exit code ${code}`) : null)

@@ -1,6 +1,6 @@
 {
   "name": "posterus",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "main": "dist/posterus",
   "description": "Composable async primitives (futures) with true cancelation and control over scheduling. Includes optional courotune implementation.",
   "keywords": [
@@ -36,6 +36,7 @@
   "devDependencies": {
     "babel-eslint": "7.2.3",
     "babel-plugin-check-es2015-constants": "6.22.0",
+    "babel-plugin-transform-es2015-arrow-functions": "6.22.0",
     "babel-plugin-transform-es2015-block-scoping": "6.24.1",
     "babel-plugin-transform-es2015-classes": "6.24.1",
     "babel-plugin-transform-es2015-destructuring": "6.23.0",
@@ -45,7 +46,6 @@
     "babel-plugin-transform-es2015-spread": "6.22.0",
     "babel-plugin-transform-es2015-template-literals": "6.22.0",
     "chai": "3.5.0",
-    "chai-as-promised": "6.0.0",
     "del": "2.2.2",
     "eslint": "3.19.0",
     "eslint-plugin-eslint-plugin": "0.7.2",
