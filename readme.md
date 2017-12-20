@@ -130,7 +130,7 @@ function after(time) {
 
 Timeout wins → delayed operation runs anyway. Is that what we wanted?
 
-Now, with cancelable futures (works):
+Now, with cancelable futures:
 
 ```js
 const {Future} = require('posterus')
@@ -187,7 +187,7 @@ function onInput() {
 
 Now there's no race.
 
-This could have used `XMLHttpRequest` objects and callbacks, but it shows why
+This could have used `XMLHttpRequest` objects directly, but it shows why
 cancelation is a prerequisite for correct async programming.
 
 #### 3. Workarounds in the wild
@@ -845,9 +845,9 @@ Attempts to stop pending work. This has changed dramatically in `0.3.0`. Now,
 As a consequence, cancelation propagates to child futures like a normal error,
 and can be caught and handled.
 
-Since `0.3.0`, Posterus doesn't outright "cancel" any callbacks. You can count on
-your code to be called. Instead, deinit reroutes the code into the "error" path,
-both downstream and upstream, triggering it synchronously on the upstream side to
+Posterus doesn't outright "cancel" any callbacks. You can always count on your
+code to be called. Instead, deinit reroutes the code into the "error" path, both
+downstream and upstream, triggering it synchronously on the upstream side to
 ensure immediate cleanup.
 
 ```js
@@ -1205,17 +1205,15 @@ aren't any special cancelation-only blocks of code.
 
 Other changes and improvements:
 
-  * `.all` and `.race` created from deinited futures will now be settled with an
-    error, rather than hung up
+  * `.all` and `.race` created from deinited futures will now settle with an
+    error instead of hanging up
 
-  * empty `.race([])` is now immediately settled with `undefined`, rather than
-    hungs up
+  * empty `.race([])` now immediately settles with `undefined` instead of
+    hanging up
 
-  * deiniting a future after it's settled no longer prevents callbacks from
-    running; instead, it suppresses the rejection handler and deinits its
-    ancestors, if any
-
-  * deiniting after settling is now a no-op
+  * deiniting a future after settling no longer prevents callbacks from running;
+    instead, this suppresses the rejection handler and deinits its ancestors, if
+    any
 
   * weaks created before and after settling a future settle in the same order
 
