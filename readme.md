@@ -401,8 +401,7 @@ other [promise annoyances](#3-annoyances-in-the-standard)?
     losers be canceled. See the [timeout race example](#1-race-against-timeout).
 
   * Since `0.3.0`, Posterus diverged even more by defining cancelation as, more
-    or less, "settling with error". It takes the view that user code must always
-    terminate.
+    or less, "settling with error". It takes the view that downstream code must always run in order to terminate as intended.
 
 ---
 
@@ -764,14 +763,14 @@ future.deinit()  // rejects the promise
 
 where `onRejected: ƒ(error): any`
 
-Shortcut for `.toPromise().catch(onRejected)`. Imitates a promise, making
+Shortcut for `.toPromise().catch(...arguments)`. Imitates a promise, making
 the future compatible with promise-based APIs such as async/await.
 
-#### `future.then(onResolved)`
+#### `future.then(onResolved, [onRejected])`
 
-where `onResolved: ƒ(result): any`
+where `onResolved: ƒ(result): any, onRejected: ƒ(error): any`
 
-Shortcut for `.toPromise().then(onResolved)`. Imitates a promise, making
+Shortcut for `.toPromise().then(...arguments)`. Imitates a promise, making
 the future compatible with promise-based APIs such as async/await.
 
 #### `future.weak()`
@@ -1225,4 +1224,4 @@ Other changes and improvements:
 
 ## Misc
 
-Author: Nelo Mitranim, https://mitranim.com
+I'm receptive to suggestions. If this library _almost_ fits you but needs changes, open an issue or chat me up. Contacts: https://mitranim.com/#contacts
