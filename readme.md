@@ -8,7 +8,7 @@ Posterus also exposes its inner [scheduling](#futurescheduler) capabilities,
 allowing you to "opt out" of asynchrony when needed ([motivating
 example](#schedulertick)).
 
-Lightweight: ≈ 7 KB minified + 1 KB dependency, with solid performance: much
+Lightweight: ≈ 7 KB minified + 1 KB dependency. Solid performance: much
 more efficient than "native" promises.
 
 Includes optional support for coroutines. Similar to async/await, but based on
@@ -411,7 +411,9 @@ other [promise annoyances](#3-annoyances-in-the-standard)?
 Install with NPM:
 
 ```sh
-npm install --exact posterus
+npm install --save-exact posterus
+# or
+npm i -E posterus
 ```
 
 Then import:
@@ -472,7 +474,7 @@ Future.race([
 ])
 ```
 
-* use [coroutines](#routine) for blocking code:
+* use [coroutines](#routine) for sequential code:
 
 ```js
 const {Future} = require('posterus')
