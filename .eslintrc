@@ -83,7 +83,7 @@
     "no-with": "error",
     "radix": "error",
     // "require-await": "error",
-    "init-declarations": ["error", "always"],
+    // "init-declarations": ["error", "always"],
     "no-delete-var": "error",
     "no-restricted-globals": ["error",
       // window (browser)
