@@ -1,26 +1,16 @@
 ## Overview
 
-Posterus is a library of promise-like asynchronous primitives (futures) that
-support cancelation. Futures compose just like promises, but can also be cleanly
-[shut down](#futuredeinit), aborting pending operations and freeing resources.
+Posterus is a library of promise-like asynchronous primitives (futures) that support cancelation. Futures compose just like promises, but can also be cleanly [shut down](#futuredeinit), aborting pending operations and freeing resources.
 
-Posterus also exposes its inner [scheduling](#futurescheduler) capabilities,
-allowing you to "opt out" of asynchrony when needed ([motivating
-example](#schedulertick)).
+Posterus also exposes its inner [scheduling](#futurescheduler) capabilities, allowing you to "opt out" of asynchrony when needed ([motivating example](#schedulertick)).
 
-Lightweight: ≈ 7 KB minified + 1 KB dependency. Solid performance: much
-more efficient than "native" promises.
+Lightweight: ≈ 7 KB minified + 1 KB dependency. Solid performance. Much more efficient than "native" promises.
 
-Includes optional support for coroutines. Similar to async/await, but based on
-futures, with implicit ownership and cancelation of in-progress work. See
-[`routine`](#routine).
+Includes optional support for coroutines/fibers. Similar to async/await, but based on futures, with implicit ownership and cancelation of in-progress work. See [`fiber`](#fiber).
 
-Supports interop with promises. Futures automatically
-[coerce](#futurethenonresolved) to promises and can be created [from
-promises](#futurefrompromisepromise).
+Interoperable with promises. You can [coerce](#futurefrompromisepromise) promises to futures. More importantly, they [_automatically_ coerce](#futurethenonresolved-onrejected) to promises. Library authors can use them for additional power without inconveniencing their users.
 
-Check the [TLDR API](#tldr-api) and the [API](#api). Then read the
-[motivation](#why).
+Check the [TLDR API](#tldr-api) and the [API](#api). Then read the [motivation](#why).
 
 ## TOC
 
@@ -43,7 +33,7 @@ Check the [TLDR API](#tldr-api) and the [API](#api). Then read the
     * [`future.finally`](#futurefinallyfinalize)
     * [`future.toPromise`](#futuretopromise)
     * [`future.catch`](#futurecatchonrejected)
-    * [`future.then`](#futurethenonresolved)
+    * [`future.then`](#futurethenonresolved-onrejected)
     * [`future.weak`](#futureweak)
     * [`future.finishPending`](#futurefinishpending)
     * [`future.deref`](#futurederef)
@@ -62,7 +52,7 @@ Check the [TLDR API](#tldr-api) and the [API](#api). Then read the
     * [`scheduler.asap`](#schedulerasap)
     * [`scheduler.deinit`](#schedulerdeinit)
   * [`isFuture`](#isfuturevalue)
-  * [`routine`](#routine)
+  * [`fiber`](#fiber)
 * [Changelog](#changelog)
 * [Misc](#misc)
 
@@ -213,7 +203,7 @@ Workarounds tend to indicate poor API design.
 Cancelation support diverges from the spec by requiring additional methods. Not
 sure you should maintain the appearance of being spec-compliant when you're not.
 Using a different interface reduces the chances of confusion, while [automatic
-coercion](#futurethenonresolved) to promises and conversion [from
+coercion](#futurethenonresolved-onrejected) to promises and conversion [from
 promises](#futurefrompromisepromise) makes interop easy.
 
 #### 2. Unicast is a better default than broadcast
@@ -400,8 +390,15 @@ other [promise annoyances](#3-annoyances-in-the-standard)?
     `Promise.race`. I disagree with these semantics. Some use cases demand that
     losers be canceled. See the [timeout race example](#1-race-against-timeout).
 
-  * Since `0.3.0`, Posterus diverged even more by defining cancelation as, more
-    or less, "settling with error". It takes the view that downstream code must always run in order to terminate as intended.
+  * Since `0.3.0`, Posterus diverged even more by defining cancelation as "settling with an error". It takes the view that callbacks must not be canceled silently; downstream code must always run to ensure that things terminate as expected.
+
+### Synchronous operations
+
+FIXME
+
+* finish all pending operations
+* check state
+* deref
 
 ---
 
@@ -473,13 +470,13 @@ Future.race([
 ])
 ```
 
-* use [coroutines](#routine) for sequential code:
+* use [coroutines](#fiber) for sequential code:
 
 ```js
 const {Future} = require('posterus')
-const {routine} = require('posterus/routine')
+const {fiber} = require('posterus/fiber')
 
-const future = routine(outer('<input>'))
+const future = fiber(outer('<input>'))
 
 function* outer(input) {
   const intermediary = yield Future.fromResult(input)
@@ -1148,7 +1145,7 @@ isFuture(Future)        // false
 
 ---
 
-### `routine`
+### `fiber`
 
 Future-based implementation of coroutines. Alternative to async/await based
 on futures, with full support for in-progress cancelation.
@@ -1157,9 +1154,9 @@ Must be imported from an optional module.
 
 ```js
 const {Future} = require('posterus')
-const {routine} = require('posterus/routine')
+const {fiber} = require('posterus/fiber')
 
-const future = routine(outer('<input>'))
+const future = fiber(outer('<input>'))
 
 function* outer(input) {
   const intermediary = yield Future.fromResult(input)
@@ -1185,6 +1182,17 @@ future.deinit()
 ---
 
 ## Changelog
+
+### `0.3.1`: renamed `routine` → `fiber`
+
+Æsthetic change. Renamed coroutines to fibers:
+
+```js
+const {fiber} = require('posterus/fiber')
+const future = fiber(function*() {}())
+```
+
+The `require('posterus/routine').routine` export will work until `0.4.0`.
 
 ### `0.3.0`: breaking changes focused on termination
 

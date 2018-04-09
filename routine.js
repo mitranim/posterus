@@ -1,3 +1,4 @@
 'use strict'
 
-module.exports = require('./dist/routine')
+// Backwards alias
+exports.routine = require('./fiber').fiber
