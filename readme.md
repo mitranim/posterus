@@ -6,7 +6,7 @@ Posterus also exposes its inner [scheduling](#futurescheduler) capabilities, all
 
 Lightweight: ≈ 7 KB minified + 1 KB dependency. Solid performance. Much more efficient than "native" promises.
 
-Includes optional support for coroutines/fibers. Similar to async/await, but based on futures, with implicit ownership and cancelation of in-progress work. See [`fiber`](#fiber).
+Includes optional support for coroutines/fibers. Replacement for async/await based on futures, with implicit ownership and cancelation of in-progress work. Also works with promises. See [`fiber`](#fiber).
 
 Interoperable with promises. You can [coerce](#futurefrompromisepromise) promises to futures. More importantly, they [_automatically_ coerce](#futurethenonresolved-onrejected) to promises. Library authors can use them for additional power without inconveniencing their users.
 
@@ -1147,8 +1147,7 @@ isFuture(Future)        // false
 
 ### `fiber`
 
-Future-based implementation of coroutines. Alternative to async/await based
-on futures, with full support for in-progress cancelation.
+Future-based coroutines. Replacement for async/await based on futures, with implicit ownership and cancelation of in-progress work. Seamlessly works with promises.
 
 Must be imported from an optional module.
 
@@ -1179,11 +1178,28 @@ function* inner(input) {
 future.deinit()
 ```
 
+You can `yield` promises. They're implicitly coerced to futures using `Future.fromPromise`. When dealing with promise-based APIs, you can use Posterus fibers instead of async functions. While promises don't support cancelation, fibers still do.
+
+```js
+function* myFiber() {
+  const one = yield Promise.resolve('one')
+  const two = yield Future.fromResult('two')
+}
+```
+
 ---
 
 ## Changelog
 
-### `0.3.1`: renamed `routine` → `fiber`
+### 0.3.3: fiber promise support
+
+You can now `yield` promises in fibers.
+
+### 0.3.2: bugfix
+
+Corrected an obscure fiber bug.
+
+### 0.3.1: renamed `routine` → `fiber`
 
 Æsthetic change. Renamed coroutines to fibers:
 
@@ -1194,7 +1210,7 @@ const future = fiber(function*() {}())
 
 The `require('posterus/routine').routine` export will work until `0.4.0`.
 
-### `0.3.0`: breaking changes focused on termination
+### 0.3.0: breaking changes focused on termination
 
 Big conceptual revision. Now, "cancelation" is basically like settling the
 future chain with an error. Posterus no longer cancels your callbacks, so
