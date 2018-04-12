@@ -1191,6 +1191,10 @@ function* myFiber() {
 
 ## Changelog
 
+### 0.3.4: better fiber promise support
+
+You can now also `return` promises from fibers.
+
 ### 0.3.3: fiber promise support
 
 You can now `yield` promises in fibers.
@@ -1248,4 +1252,4 @@ Other changes and improvements:
 
 ## Misc
 
-I'm receptive to suggestions. If this library _almost_ fits you but needs changes, open an issue or chat me up. Contacts: https://mitranim.com/#contacts
+I'm receptive to suggestions. If this library _almost_ satisfies you but needs changes, open an issue or chat me up. Contacts: https://mitranim.com/#contacts
