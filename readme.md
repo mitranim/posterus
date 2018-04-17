@@ -4,7 +4,7 @@ Posterus is a library of promise-like asynchronous primitives (futures) that sup
 
 Posterus also exposes its inner [scheduling](#futurescheduler) capabilities, allowing you to "opt out" of asynchrony when needed ([motivating example](#schedulertick)).
 
-Lightweight: ≈ 7 KB minified + 1 KB dependency. Solid performance. Much more efficient than "native" promises.
+Lightweight: ≈ 6 KiB minified, dependency-free. Solid performance. Much more efficient than "native" promises.
 
 Includes optional support for coroutines/fibers. Replacement for async/await based on futures, with implicit ownership and cancelation of in-progress work. Also works with promises. See [`fiber`](#fiber).
 
@@ -1062,7 +1062,7 @@ Asynchronous operations include:
 `.tick()` is idempotent: it's ok to make redundant calls, or call it before the
 next pending tick.
 
-Note that `.tick()` could throw in case of unhandled rejection. In that case,
+Note that `.tick()` may throw in case of unhandled rejection. In that case,
 the remaining operations will remain pending until the next scheduled or manual
 tick.
 
@@ -1147,7 +1147,7 @@ isFuture(Future)        // false
 
 ### `fiber`
 
-Future-based coroutines. Replacement for async/await based on futures, with implicit ownership and cancelation of in-progress work. Seamlessly works with promises.
+Future-based coroutines. Replacement for async functions, with implicit ownership and cancelation of in-progress work. Seamlessly work with promises.
 
 Must be imported from an optional module.
 
@@ -1178,7 +1178,7 @@ function* inner(input) {
 future.deinit()
 ```
 
-You can `yield` promises. They're implicitly coerced to futures using `Future.fromPromise`. When dealing with promise-based APIs, you can use Posterus fibers instead of async functions. While promises don't support cancelation, fibers still do.
+You can `yield` and `return` promises. They're implicitly coerced to futures using `Future.fromPromise`. When dealing with promise-based APIs, you can use Posterus fibers instead of async functions. While promises don't support cancelation, a fiber waiting on a promise can be interrupted.
 
 ```js
 function* myFiber() {
@@ -1216,21 +1216,11 @@ The `require('posterus/routine').routine` export will work until `0.4.0`.
 
 ### 0.3.0: breaking changes focused on termination
 
-Big conceptual revision. Now, "cancelation" is basically like settling the
-future chain with an error. Posterus no longer cancels your callbacks, so
-you can always count on termination.
+Big conceptual revision. Now, "cancelation" is defined as settling the future chain with an error. Posterus no longer cancels your callbacks, so your code always runs and terminates.
 
-This also removes `Future.init`, `Future.initAsync`, and special cancelation-only
-callbacks they supported. They become unnecessary when cancelation is just an
-error: deinit logic can be put in a `.finally` callback. When deiniting a
-descendant future, callbacks on ancestor futures are called synchronously to
-ensure immediate cleanup.
+This also removes `Future.init`, `Future.initAsync`, and special cancelation-only callbacks they supported. They become unnecessary when cancelation is just an error: deinit logic can be put in a `.finally` callback. When deiniting a descendant future, callbacks on ancestor futures are called synchronously to ensure immediate cleanup.
 
-The new behavior better aligns with synchronous code. Consider Java threads and
-futures: `thread.stop()`, `thread.interrupt()`, `future.cancel()` throw an
-exception into a thread, moving execution to the nearest `catch` or `finally`
-block. It doesn't completely stop the thread's code from executing, and there
-aren't any special cancelation-only blocks of code.
+The new behavior better aligns with synchronous code. Consider Java threads and futures: `thread.stop()`, `thread.interrupt()`, `future.cancel()` throw an exception into a thread, moving execution to the nearest `catch` or `finally` block. It doesn't completely stop the thread's code from executing, and there aren't any special cancelation-only blocks of code.
 
 Other changes and improvements:
 

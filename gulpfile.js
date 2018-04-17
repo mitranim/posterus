@@ -15,9 +15,8 @@ const {fork} = require('child_process')
  * Globals
  */
 
-const _libDir = 'lib'
 const distDir = 'dist'
-const libFiles = 'lib/**/*.js'
+const srcFiles = 'src/**/*.js'
 const distFiles = 'dist/**/*.js'
 const testFiles = 'test/**/*.js'
 
@@ -32,7 +31,7 @@ gulp.task('clear', () => (
 ))
 
 gulp.task('compile', () => (
-  gulp.src(libFiles)
+  gulp.src(srcFiles)
     .pipe($.babel())
     // Mangles "private" properties to reduce API surface and potential confusion
     .pipe($.uglify({
@@ -77,14 +76,14 @@ gulp.task('test', done => {
 })
 
 gulp.task('lint', () => (
-  gulp.src(libFiles)
+  gulp.src(srcFiles)
     .pipe($.eslint())
     .pipe($.eslint.format())
     .pipe($.eslint.failAfterError())
 ))
 
 gulp.task('watch', () => {
-  $.watch(libFiles, gulp.series('clear', 'compile', 'test'))
+  $.watch(srcFiles, gulp.series('clear', 'compile', 'test'))
   $.watch(testFiles, gulp.series('test'))
 })
 

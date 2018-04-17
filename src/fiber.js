@@ -1,14 +1,11 @@
-'use strict'
-
 // Needs tests.
 
-const {Future, isFuture} = require('./posterus')
+import * as ps from './posterus'
 
-exports.fiber = fiber
-function fiber(iter) {
+export function fiber(iter) {
   validate(iter, isIterator)
 
-  const out = new Future()
+  const out = new ps.Future()
   let pending
 
   function onDone(error, value) {
@@ -37,7 +34,7 @@ function fiber(iter) {
 
     value = maybeToFuture(value)
 
-    if (isFuture(value)) {
+    if (ps.isFuture(value)) {
       pending = value.map(onPendingDone)
       return
     }
@@ -65,12 +62,12 @@ function fiber(iter) {
 
 function maybeToFuture(value) {
   return (
-    isFuture(value)
+    ps.isFuture(value)
     ? value
     : isIterator(value)
     ? fiber(value)
     : isPromise(value)
-    ? Future.fromPromise(value)
+    ? ps.Future.fromPromise(value)
     : value
   )
 }

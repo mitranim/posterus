@@ -1,10 +1,6 @@
-# Commonly ignored files
-*.log
-.DS_Store
-
-# Folders
-node_modules
-misc
-
-# Files
-*.min.js
+/*
+!/lib
+!/src
+!/node.js
+!/readme-node.md
+!/readme.md

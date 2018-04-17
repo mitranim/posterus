@@ -6,5 +6,8 @@
   },
   "globals": {
     "Promise": true
+  },
+  "parserOptions": {
+    "sourceType": "module"
   }
 }
