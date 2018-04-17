@@ -23,6 +23,7 @@ export function isFuture(value) {
 //   * no `unshift` support
 function Queue() {
   const self = this
+  validateInstance(self, Queue)
   self.head_ = []
   self.tail_ = []
   self.index_ = 0
@@ -64,7 +65,7 @@ Queue.prototype = {
 
 export function Scheduler(deque) {
   const self = this
-  if (!(self instanceof Scheduler)) throw Error(CONSTRUCTOR_ERROR)
+  validateInstance(self, Scheduler)
   validate(deque, isFunction)
   self.pending_ = new Queue()
   self.deque_ = deque
@@ -130,7 +131,7 @@ const SETTLED           = ERROR | SUCCESS
 
 export function Future() {
   const self = this
-  if (!(self instanceof Future)) throw Error(CONSTRUCTOR_ERROR)
+  validateInstance(self, Future)
   // Note: the build system mangles properties ending with `_`.
   self.bits_        = PENDING
   self.value_       = undefined
@@ -398,6 +399,7 @@ Future.scheduler = new Scheduler(function finishPending(future) {
  */
 
 function AllJuncture(future, values) {
+  validateInstance(this, AllJuncture)
   this.future_ = future
   this.values_ = values.slice()
 }
@@ -478,6 +480,7 @@ function settleAllJuncture(all, error) {
  */
 
 function RaceJuncture(future, values) {
+  validateInstance(this, RaceJuncture)
   this.future_ = future
   this.values_ = values.slice()
 }
@@ -556,7 +559,6 @@ export function isDeinitError(value) {
  * Internal
  */
 
-const CONSTRUCTOR_ERROR = `Cannot call a class as a function`
 const CONSUMABLE_ERROR = `Expected a consumable future: one that has not been mapped or passed to .settle`
 const DEINIT_ERROR = 'DEINIT'
 
@@ -650,6 +652,10 @@ function isBaseFuture(value) {
 
 function validate(value, test) {
   if (!test(value)) throw Error(`Expected ${value} to satisfy test ${test.name}`)
+}
+
+function validateInstance(instance, Class) {
+  if (!(instance instanceof Class)) throw Error(`Cannot call a class as a function`)
 }
 
 function forceDeinitFutures(list) {
