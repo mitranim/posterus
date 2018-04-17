@@ -1,6 +1,5 @@
 /*
-!/lib
+!/dist
 !/src
-!/node.js
-!/readme-node.md
+!/fiber.js
 !/readme.md

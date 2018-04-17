@@ -1191,6 +1191,10 @@ function* myFiber() {
 
 ## Changelog
 
+### 0.4.1
+
+Unignored `posterus/fiber` for NPM and removed `posterus/routine`.
+
 ### 0.4.0: dependency-free, smaller size
 
 Inlined the `fastqueue` dependency with modifications that reduce the minified size. Use ES5-style classes and other tweaks to avoid generating Babel garbage and produce minificable code. This reduces the total size from ≈8 KiB to ≈6 KiB.
@@ -1216,7 +1220,7 @@ const {fiber} = require('posterus/fiber')
 const future = fiber(function*() {}())
 ```
 
-The `require('posterus/routine').routine` export will work until `0.4.0`.
+The `require('posterus/routine').routine` export worked until `0.4.1`.
 
 ### 0.3.0: breaking changes focused on termination
 
