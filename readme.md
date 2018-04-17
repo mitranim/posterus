@@ -1191,6 +1191,10 @@ function* myFiber() {
 
 ## Changelog
 
+### 0.4.0: dependency-free, smaller size
+
+Inlined the `fastqueue` dependency with modifications that reduce the minified size. Use ES5-style classes and other tweaks to avoid generating Babel garbage and produce minificable code. This reduces the total size from ≈8 KiB to ≈6 KiB.
+
 ### 0.3.4: better fiber promise support
 
 You can now also `return` promises from fibers.
