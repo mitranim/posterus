@@ -6,7 +6,7 @@ Posterus also exposes its inner [scheduling](#futurescheduler) capabilities, all
 
 Lightweight: ≈ 6 KiB minified, dependency-free. Solid performance. Much more efficient than "native" promises.
 
-Includes optional support for coroutines/fibers, at ≈ 800 bytes minified. It's a future-based replacement for async/await, with implicit ownership and cancelation of in-progress work. Compatible with promises. See [`fiber`](#fiber).
+Includes optional support for coroutines/fibers, ≈ 0.8 KiB minified. It's a future-based replacement for async/await, with implicit ownership and cancelation of in-progress work. Compatible with promises. See [`fiber`](#fiber).
 
 Interoperable with promises. You can [coerce](#futurefrompromisepromise) promises to futures. More importantly, they [_automatically_ coerce](#futurethenonresolved-onrejected) to promises. Library authors can use them for additional power without inconveniencing their users.
 
