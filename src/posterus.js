@@ -443,8 +443,8 @@ function initAllJuncture(all) {
   }
 
   if (values.some(isFuture)) {
-    // This includes future.deinit()
-    all.future_.finalizer_ = deinitOnError.bind(all)
+    // This runs when the future is settled or deinited
+    all.future_.finalizer_ = all.deinit.bind(all)
   }
   else {
     settleAll()
@@ -528,8 +528,8 @@ function initRaceJuncture(race) {
   }
 
   if (values.some(isFuture)) {
-    // This includes future.deinit()
-    race.future_.finalizer_ = deinitOnError.bind(race)
+    // This runs when the future is settled or deinited
+    race.future_.finalizer_ = race.deinit.bind(race)
   }
   else {
     settleRace()
@@ -592,10 +592,6 @@ function mapFutureToPromise(future, resolve, reject) {
   }
   if (!future.finalizer_) setupFinalizer(future, settleFuturePromise)
   else future.map(settleFuturePromise)
-}
-
-function deinitOnError(error) {
-  if (error) this.deinit()  // eslint-disable-line no-invalid-this
 }
 
 function scheduleFuture(future) {
