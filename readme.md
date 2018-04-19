@@ -1191,6 +1191,10 @@ function* myFiber() {
 
 ## Changelog
 
+### 0.4.2
+
+Bugfixed a rare edge case in `.all` and `.race`.
+
 ### 0.4.1
 
 Unignored `posterus/fiber` for NPM and removed `posterus/routine`.
