@@ -4,7 +4,7 @@ Posterus is a library of promise-like asynchronous primitives (futures) that sup
 
 Posterus also exposes its inner [scheduling](#futurescheduler) capabilities, allowing you to "opt out" of asynchrony when needed ([motivating example](#schedulertick)).
 
-Lightweight: ≈ 6 KiB minified, dependency-free. Solid performance. Much more efficient than "native" promises.
+Lightweight: ≈ 6 KiB minified, dependency-free. Has solid performance, competitive with Bluebird in my limited testing.
 
 Includes optional support for coroutines/fibers, ≈ 0.8 KiB minified. It's a future-based replacement for async/await, with implicit ownership and cancelation of in-progress work. Compatible with promises. See [`fiber`](#fiber).
 

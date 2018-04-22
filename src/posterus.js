@@ -24,11 +24,11 @@ export function isFuture(value) {
 function Queue() {
   const self = this
   validateInstance(self, Queue)
+  self.length = 0
   self.head_ = []
   self.tail_ = []
   self.index_ = 0
   self.headLength_ = 0
-  self.length = 0
 }
 
 Queue.prototype = {
@@ -402,18 +402,20 @@ function AllJuncture(future, values) {
   validateInstance(this, AllJuncture)
   this.future_ = future
   this.values_ = values.slice()
+  this.pending_ = 0
 }
 
 AllJuncture.prototype.deinit = function deinit() {
   this.future_ = undefined
   const values = this.values_
   this.values_ = undefined
+  this.pending_ = undefined
   forceDeinitFutures(values)
 }
 
 function initAllJuncture(all) {
   const values = all.values_
-  const settleAll = settleAllJuncture.bind(null, all)
+  const settleJuncture = settleAllJuncture.bind(null, all)
 
   for (let i = 0; i < values.length; i += 1) {
     const value = values[i]
@@ -424,7 +426,7 @@ function initAllJuncture(all) {
       if (someBitsSet(value, CONSUMED)) throw Error(CONSUMABLE_ERROR)
 
       if (someBitsSet(value, ERROR)) {
-        settleAll(value)
+        settleJuncture(value)
         return
       }
 
@@ -435,29 +437,34 @@ function initAllJuncture(all) {
 
       if (!value.finalizer_) {
         setupFinalizer(value, settleAllJunctureAtIndex.bind(null, all, i))
+        if (someBitsSet(value, PENDING)) all.pending_ += 1
         continue
       }
     }
 
     values[i] = value.map(settleAllJunctureAtIndex.bind(null, all, i))
+    all.pending_ += 1
   }
 
-  if (values.some(isFuture)) {
+  if (all.pending_) {
     // This runs when the future is settled or deinited
     all.future_.finalizer_ = all.deinit.bind(all)
   }
   else {
-    settleAll()
+    settleJuncture()
   }
 }
 
 function settleAllJunctureAtIndex(all, i, error, result) {
   const values = all.values_
   if (!values) return
-  if (error) settleAllJuncture(all, error)
+  all.pending_ -= 1
+  if (error) {
+    settleAllJuncture(all, error)
+  }
   else {
     values[i] = result
-    if (!values.some(isFuture)) settleAllJuncture(all)
+    if (!all.pending_) settleAllJuncture(all)
   }
 }
 
@@ -483,24 +490,26 @@ function RaceJuncture(future, values) {
   validateInstance(this, RaceJuncture)
   this.future_ = future
   this.values_ = values.slice()
+  this.pending_ = 0
 }
 
 RaceJuncture.prototype.deinit = function deinit() {
   this.future_ = undefined
   const values = this.values_
   this.values_ = undefined
+  this.pending_ = undefined
   forceDeinitFutures(values)
 }
 
 function initRaceJuncture(race) {
   const values = race.values_
-  const settleRace = settleRaceJuncture.bind(null, race)
+  const settleJuncture = settleRaceJuncture.bind(null, race)
 
   for (let i = 0; i < values.length; i += 1) {
     const value = values[i]
 
     if (!isFuture(value)) {
-      settleRace(undefined, value)
+      settleJuncture(undefined, value)
       return
     }
 
@@ -509,30 +518,32 @@ function initRaceJuncture(race) {
       if (someBitsSet(value, CONSUMED)) throw Error(CONSUMABLE_ERROR)
 
       if (someBitsSet(value, ERROR)) {
-        settleRace(value)
+        settleJuncture(value)
         return
       }
 
       if (someBitsSet(value, SUCCESS)) {
-        settleRace(undefined, quietlyConsume(value))
+        settleJuncture(undefined, quietlyConsume(value))
         return
       }
 
       if (!value.finalizer_) {
-        setupFinalizer(value, settleRace)
+        setupFinalizer(value, settleJuncture)
+        if (someBitsSet(value, PENDING)) race.pending_ += 1
         continue
       }
     }
 
-    values[i] = value.map(settleRace)
+    values[i] = value.map(settleJuncture)
+    race.pending_ += 1
   }
 
-  if (values.some(isFuture)) {
+  if (race.pending_) {
     // This runs when the future is settled or deinited
     race.future_.finalizer_ = race.deinit.bind(race)
   }
   else {
-    settleRace()
+    settleJuncture()
   }
 }
 
