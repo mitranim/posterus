@@ -1191,6 +1191,12 @@ function* myFiber() {
 
 ## Changelog
 
+### 0.4.3
+
+Future.all no longer gets slower with large input arrays.
+
+Probably irrelevant in real world code, but could make us look bad in artificial microbenchmarks.
+
 ### 0.4.2
 
 Bugfixed a rare edge case in `.all` and `.race`.
