@@ -415,7 +415,6 @@ AllJuncture.prototype.deinit = function deinit() {
 
 function initAllJuncture(all) {
   const values = all.values_
-  const settleJuncture = settleAllJuncture.bind(null, all)
 
   for (let i = 0; i < values.length; i += 1) {
     const value = values[i]
@@ -426,7 +425,7 @@ function initAllJuncture(all) {
       if (someBitsSet(value, CONSUMED)) throw Error(CONSUMABLE_ERROR)
 
       if (someBitsSet(value, ERROR)) {
-        settleJuncture(value)
+        settleAllJuncture(all, value)
         return
       }
 
@@ -451,7 +450,7 @@ function initAllJuncture(all) {
     all.future_.finalizer_ = all.deinit.bind(all)
   }
   else {
-    settleJuncture()
+    settleAllJuncture(all)
   }
 }
 
