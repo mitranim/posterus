@@ -380,25 +380,13 @@ resource management with deterministic destructors (see above).
 Bluebird now supports upstream cancelation. Why not use it and tolerate the
 other [promise annoyances](#3-annoyances-in-the-standard)?
 
-  * The size kills it. At the moment of writing, the core Bluebird bundle is 56
-    KB minified. For a browser bundle, that's insanely large just for
-    cancelation support. Not caring about another 50 KB is how you end up with
-    megabyte-large bundles that take seconds to execute. Posterus comes at 8 KB,
-    like a typical promise polyfill.
+  * The size kills it. At the moment of writing, the core Bluebird bundle is 56 KB minified. For a browser bundle, that's insanely large just for cancelation support. Not caring about another 50 KB is how you end up with megabyte-large bundles that take seconds to execute. Posterus comes at 6 KiB, like a typical promise polyfill.
 
   * At the moment of writing, Bluebird doesn't cancel promises that lose a
     `Promise.race`. I disagree with these semantics. Some use cases demand that
     losers be canceled. See the [timeout race example](#1-race-against-timeout).
 
   * Since `0.3.0`, Posterus diverged even more by defining cancelation as "settling with an error". It takes the view that callbacks must not be canceled silently; downstream code must always run to ensure that things terminate as expected.
-
-### Synchronous operations
-
-FIXME
-
-* finish all pending operations
-* check state
-* deref
 
 ---
 
@@ -834,19 +822,15 @@ Intended for more control in esoteric use cases.
 
 #### `future.deinit()`
 
-Attempts to stop pending work. This has changed dramatically in `0.3.0`. Now,
-"cancelation" is defined like this:
+Attempts to stop pending work. Posterus defines cancelation as "settling with an error", with some nuances:
 
-  * settle the future and its children with an error
-  * synchronously deinit the parent future, if any (recursive)
+  * upstream predecessors are deinited synchronously
+  * downstream successors receive the deinit error asynchronously
 
 As a consequence, cancelation propagates to child futures like a normal error,
 and can be caught and handled.
 
-Posterus doesn't outright "cancel" any callbacks. You can always count on your
-code to be called. Instead, deinit reroutes the code into the "error" path, both
-downstream and upstream, triggering it synchronously on the upstream side to
-ensure immediate cleanup.
+Posterus doesn't cancel any callbacks. You can always count on your code to be called. Instead, deinit reroutes the code into the "error" path, both downstream and upstream, triggering it synchronously on the upstream side to allow for immediate cleanup.
 
 ```js
 // upstream cancelation
