@@ -1,8 +1,9 @@
 {
   "name": "posterus",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Composable async primitives (futures) with true cancelation and control over scheduling. Includes optional courotune implementation.",
-  "main": "dist/posterus",
+  "main": "dist/posterus.js",
+  "module": "es/posterus.js",
   "keywords": [
     "future",
     "promise",
@@ -17,14 +18,10 @@
     "async",
     "await"
   ],
-  "authors": [
-    "Nelo Mitranim <me@mitranim.com>"
-  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/Mitranim/posterus.git"
   },
-  "homepage": "https://github.com/Mitranim/posterus",
   "license": "WTFPL",
   "scripts": {
     "start": "gulp",
@@ -50,7 +47,8 @@
     "gulp-babel": "6.1.2",
     "gulp-eslint": "3.0.1",
     "gulp-load-plugins": "1.5.0",
-    "gulp-uglify": "2.1.2",
-    "gulp-watch": "4.3.11"
+    "gulp-watch": "4.3.11",
+    "uglify-es": "3.3.9",
+    "uglify-js": "3.4.0"
   }
 }

@@ -3,7 +3,8 @@
 *.lock
 package-lock.json*
 node_modules
-dist
-misc
+/es
+/dist
+/misc
 /todo
 /perf.js
