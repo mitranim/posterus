@@ -25,7 +25,7 @@
     "url": "https://github.com/Mitranim/posterus.git"
   },
   "homepage": "https://github.com/Mitranim/posterus",
-  "license": "MIT",
+  "license": "WTFPL",
   "scripts": {
     "start": "gulp",
     "test": "node test/test",
