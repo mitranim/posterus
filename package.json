@@ -1,6 +1,6 @@
 {
   "name": "posterus",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "description": "Composable async primitives (futures) with cancelation and control over scheduling. Includes optional courotune implementation.",
   "main": "dist/posterus.js",
   "module": "es/posterus.js",
