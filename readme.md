@@ -1175,6 +1175,10 @@ function* myFiber() {
 
 ## Changelog
 
+### 0.4.6
+
+With Webpack or other bundlers, `import 'posterus/fiber'` now chooses the ES2015 version, whereas `require('posterus/fiber')` in Node still chooses the CommonJS version.
+
 ### 0.4.4, 0.4.5
 
 Added ES modules. When using `import 'posterus'`, bundlers such as Webpack should automatically use the version from the `es` folder. This makes it compatible with module concatenation, tree shaking, etc.
