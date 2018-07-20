@@ -1175,6 +1175,10 @@ function* myFiber() {
 
 ## Changelog
 
+### 0.4.4, 0.4.5
+
+Added ES modules. When using `import 'posterus'`, bundlers such as Webpack should automatically use the version from the `es` folder. This makes it compatible with module concatenation, tree shaking, etc.
+
 ### 0.4.3
 
 Future.all no longer gets slower with large input arrays.

@@ -70,7 +70,7 @@ export function Scheduler(deque) {
   self.pending_ = new Queue()
   self.deque_ = deque
   self.isScheduled_ = false
-  self.scheduledTick_ = scheduledTick.bind(null, self)
+  self.scheduledTick_ = scheduledTick.bind(undefined, self)
   self.asap = chooseAsapImplementation(self.scheduledTick_)
 }
 
@@ -249,17 +249,17 @@ Future.prototype = {
 
   mapError(mapper) {
     validate(mapper, isFunction)
-    return this.map(mapError.bind(null, mapper))
+    return this.map(mapError.bind(undefined, mapper))
   },
 
   mapResult(mapper) {
     validate(mapper, isFunction)
-    return this.map(mapResult.bind(null, mapper))
+    return this.map(mapResult.bind(undefined, mapper))
   },
 
   finally(mapper) {
     validate(mapper, isFunction)
-    return this.map(mapFinally.bind(null, mapper))
+    return this.map(mapFinally.bind(undefined, mapper))
   },
 
   weak() {
@@ -276,7 +276,7 @@ Future.prototype = {
     unsetBits(self, PENDING_REJECTION)
     if (someBitsSet(self, ERROR)) return Promise.reject(self.value_)
     if (someBitsSet(self, SUCCESS)) return Promise.resolve(self.value_)
-    return new Promise(mapFutureToPromise.bind(null, self))
+    return new Promise(mapFutureToPromise.bind(undefined, self))
   },
 
   catch(onError) {
@@ -435,13 +435,13 @@ function initAllJuncture(all) {
       }
 
       if (!value.finalizer_) {
-        setupFinalizer(value, settleAllJunctureAtIndex.bind(null, all, i))
+        setupFinalizer(value, settleAllJunctureAtIndex.bind(undefined, all, i))
         if (someBitsSet(value, PENDING)) all.pending_ += 1
         continue
       }
     }
 
-    values[i] = value.map(settleAllJunctureAtIndex.bind(null, all, i))
+    values[i] = value.map(settleAllJunctureAtIndex.bind(undefined, all, i))
     all.pending_ += 1
   }
 
@@ -502,7 +502,7 @@ RaceJuncture.prototype.deinit = function deinit() {
 
 function initRaceJuncture(race) {
   const values = race.values_
-  const settleJuncture = settleRaceJuncture.bind(null, race)
+  const settleJuncture = settleRaceJuncture.bind(undefined, race)
 
   for (let i = 0; i < values.length; i += 1) {
     const value = values[i]
