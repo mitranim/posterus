@@ -20,6 +20,7 @@ const {fork} = require('child_process')
  */
 
 const srcFiles = 'src/**/*.js'
+const typeFiles = 'src/**/*.d.ts'
 const esDir = 'es'
 const distDir = 'dist'
 const testFiles = 'test/**/*.js'
@@ -100,6 +101,12 @@ gulp.task('compile', () => (
     }))
 ))
 
+gulp.task('types', () => (
+  gulp.src(typeFiles)
+    .pipe(gulp.dest(esDir))
+    .pipe(gulp.dest(distDir))
+))
+
 let testProc = null
 
 process.once('exit', () => {
@@ -132,6 +139,6 @@ gulp.task('watch', () => {
   $.watch(testFiles, gulp.series('test'))
 })
 
-gulp.task('build', gulp.series('clear', 'compile', 'test', 'lint'))
+gulp.task('build', gulp.series('clear', 'compile', 'types', 'test', 'lint'))
 
 gulp.task('default', gulp.series('build', 'watch'))
