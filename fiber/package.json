@@ -1,4 +1,0 @@
-{
-  "main": "../dist/fiber.js",
-  "module": "../es/fiber.js"
-}

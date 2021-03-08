@@ -1,10 +1,7 @@
-.DS_Store
-*.log
-*.lock
-package-lock.json*
-node_modules
-/es
-/dist
-/misc
-/todo
-/perf.js
+/*
+!/test
+!/.eslintrc
+!/.npmignore
+!/package.json
+!/*.md
+!/*.mjs

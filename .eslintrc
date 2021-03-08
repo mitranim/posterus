@@ -1,12 +1,9 @@
 {
-  "parser": "babel-eslint",
-  "parserOptions": {
-    "sourceType": "script"
-  },
+  "parserOptions": {"sourceType": "module"},
   "env": {
-    "browser": false,
-    "node": true,
-    "es6": true
+    "es2017": true,
+    "browser": true,
+    "node": true
   },
   "rules": {
     // Logic
@@ -43,7 +40,7 @@
     "no-case-declarations": "error",
     "eqeqeq": ["error", "allow-null"],
     "no-else-return": "error",
-    // "no-empty-function": ["error", {"allow": ["functions", "generatorFunctions", "methods", "generatorMethods", "constructors"]}],
+    "no-empty-function": ["error", {"allow": ["functions", "generatorFunctions", "methods", "generatorMethods", "constructors"]}],
     "no-empty-pattern": "error",
     "no-eval": "error",
     "no-extend-native": "error",
@@ -72,7 +69,7 @@
     "no-self-assign": "error",
     "no-self-compare": "error",
     "no-sequences": "error",
-    // "no-throw-literal": "error",
+    "no-throw-literal": "off",
     "no-unmodified-loop-condition": "error",
     "no-unused-expressions": "error",
     // "no-unused-labels": "error",
@@ -82,8 +79,8 @@
     "no-useless-return": "error",
     "no-with": "error",
     "radix": "error",
-    // "require-await": "error",
-    // "init-declarations": ["error", "always"],
+    "require-await": "error",
+    "init-declarations": "off",
     "no-delete-var": "error",
     "no-restricted-globals": ["error",
       // window (browser)
@@ -127,14 +124,18 @@
     "comma-style": "error",
     "computed-property-spacing": "error",
     "func-call-spacing": "error",
-    // "func-names": ["error", "as-needed"],
+    "func-names": ["error", "as-needed"],
     // "func-style": ["error", "declaration"],
     // "id-length": ["error", {"min": 3}],
-    "indent": ["error", 2, {"SwitchCase": 1}],
+    "indent": ["error", 2, {
+      "SwitchCase": 1,
+      "flatTernaryExpressions": true,
+      "ignoredNodes": ["ConditionalExpression"]
+    }],
     // "key-spacing": ["error", {"align": "value"}],
     // "key-spacing": "error",
     "keyword-spacing": "error",
-    "lines-around-comment": "error",
+    "lines-around-comment": "off",
     "lines-around-directive": "error",
     "max-len": ["error", {"code": 120}],
     // "new-cap": "error",
@@ -153,9 +154,10 @@
     "object-curly-spacing": "error",
     "one-var": ["error", "never"],
     "operator-assignment": ["error", "always"],
-    "operator-linebreak": ["error", "after", {"overrides": {"?": "off", ":": "off"}}],
+    // "operator-linebreak": ["error", "after", {"overrides": {"?": "off", ":": "off"}}],
     "padded-blocks": ["error", "never"],
-    "quote-props": ["error", "as-needed"],
+    // "quote-props": ["error", "as-needed"],
+    "quote-props": "off",
     "quotes": ["error", "single", {"allowTemplateLiterals": true, "avoidEscape": true}],
     "semi": ["error", "never"],
     "space-before-blocks": ["error", "always"],
