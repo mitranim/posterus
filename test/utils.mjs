@@ -4,15 +4,13 @@ import * as e from 'emerge'
 
 export function is(actual, expected, message) {
   if (!e.is(actual, expected)) {
-    if (message) throw new AssertionError({message, stackStartFunction: is})
-    throw new AssertionError({actual, expected, operator: `is`, stackStartFunction: is})
+    throw new AssertionError({actual, expected, operator: `is`, stackStartFunction: is, message})
   }
 }
 
 export function eq(actual, expected, message) {
   if (!e.equal(actual, expected)) {
-    if (message) throw new AssertionError({message, stackStartFunction: eq})
-    throw new AssertionError({actual, expected, operator: `eq`, stackStartFunction: eq})
+    throw new AssertionError({actual, expected, operator: `eq`, stackStartFunction: eq, message})
   }
 }
 
@@ -64,3 +62,19 @@ function show(value) {
 function isFunction(value) {
   return typeof value === 'function'
 }
+
+export function runWithTimeout(fun) {
+  const timer = setTimeout(timeoutPanic, 512)
+  return fun().then(clearTimeout.bind(undefined, timer), panic)
+}
+
+function timeoutPanic() {
+  panic(Error(`test timeout`))
+}
+
+export function panic(err) {
+  console.error(`fatal error:`, err)
+  process.exit(1)
+}
+
+export function noop() {}
