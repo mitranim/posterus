@@ -401,4 +401,64 @@ t.runWithTimeout(async function test() {
     p.async.tick()
     t.eq(args, ['err', undefined])
   }()
+
+  await async function autoConvertPromises() {
+    await async function doneErr() {
+      const task = new p.Task()
+
+      let args
+      task.map((...a) => {args = a})
+
+      task.done(undefined, Promise.reject('err'))
+      await task.toPromise()
+
+      t.eq(args, ['err', undefined])
+    }()
+
+    await async function doneVal() {
+      const task = new p.Task()
+
+      let args
+      task.map((...a) => {args = a})
+
+      task.done(undefined, Promise.resolve('val'))
+      await task.toPromise()
+
+      t.eq(args, [undefined, 'val'])
+    }()
+
+    await async function mapperErr() {
+      const task = new p.Task()
+
+      task.map(() => {
+        throw Promise.reject('err')
+      })
+
+      let args
+      task.map((...a) => {args = a})
+
+      task.done()
+      await task.toPromise()
+
+      t.eq(args, ['err', undefined])
+    }()
+
+    await async function mapperVal() {
+      const task = new p.Task()
+
+      task.map(() => {
+        return Promise.resolve('val')
+      })
+
+      let args
+      task.map((...a) => {args = a})
+
+      task.done()
+      await task.toPromise()
+
+      t.eq(args, [undefined, 'val'])
+    }()
+  }()
+}).then(() => {
+  console.log('[test] ok')
 })

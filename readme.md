@@ -18,11 +18,11 @@ Main differences from promises:
 * Doesn't store results.
 * Dramatically simpler and faster.
 
-Lightweight: ≈ 6 KiB minified, dependency-free. Usable as a native JS module.
+Small (≈10 KiB unminified) and dependency-free. Usable as a native JS module.
 
-Optionally supports coroutines/fibers, ≈ 0.8 KiB minified. It's a replacement for async/await, with implicit ownership and cancelation of in-progress work. Compatible with promises. See [`fiber`](#fiberiter).
+Optionally supports coroutines/fibers (≈2 KiB unminified). Replacement for async/await, with implicit ownership and cancelation of in-progress work. Compatible with promises. See [`fiber`](#fiberiter).
 
-Convertible [to](#tasktopromise) and [from](#frompromisepromise) promises.
+Convertible [to](#tasktopromise) and [from](#frompromisepromise) promises. Where possible, promises are automatically converted to tasks.
 
 ## TOC
 
@@ -425,9 +425,9 @@ Settles the task with the provided error and result. Similar to the `resolve` an
 
 The task is considered rejected if `error` is truthy, and successful otherwise, like in a typical Node errback.
 
-Just like `Promise.reject` and `Promise.resolve`, accepts other tasks and automatically "flattens", eventually resolving to a non-task.
-
 Unlike promises, a task runs its callbacks _synchronously_. If there's an unhandled error, the caller of `.done()` can/must handle it via try/catch. This dramatically simplifies the implementantion, the mental model, and helps to avoid unhandled promise rejections.
+
+Either `err` or `val` can be a task or a promise. In this case, it's "flattened": the current task will wait for its completion. In addition, the current task takes "ownership" of any task passed to `.done()`, and will deinit it alongside itself on a call to [`.deinit()`](#taskdeinit).
 
 If the task has previosly been settled or deinited, this is a no-op.
 
@@ -464,11 +464,13 @@ where `fun: ƒ(err, val): any`
 
 Core chaining operation. Registers a function that will transform the task's result or error. The function's return value becomes the task's result, and the function's throw becomes the task's error. Either may be further transformed by other mappers.
 
-Just like [`.done()`](#taskdoneerr-val), this automatically "flattens" the tasks returned by the mapper(s), eventually resolving to non-task values. This is known as "flatmap" in some languages.
-
 Compared to promises, this is like a combination of `.then()` and `.catch()` into one function. Unlike promises, this _mutates the task and returns the same instance_.
 
 Because Posterus tasks don't store their results, calling `.map()` after the task is settled (via `.done()`) produces a synchronous exception. For asynchrony, use [`async`](#async) and [`AsyncTask`](#asynctask).
+
+Just like [`.done()`](#taskdoneerr-val), this automatically "flattens" the tasks returned or thrown by the mapper(s), eventually resolving to non-task values. This is known as "flatmap" in some languages. Also, just like `.done()`, this supports promises.
+
+Takes "ownership" of any task returned or thrown by a mapper, and will deinit the inner task on a call to [`.deinit()`](#taskdeinit).
 
 All other chaining operations are defined in terms of `.map()` and share these characteristics.
 
@@ -874,6 +876,12 @@ task.deinit()
 ```
 
 ## Changelog
+
+### 0.5.1
+
+`task.done()` and `task.map()`, and other methods defined in terms of them, now implicitly support promises, waiting for their completion.
+
+Restored the ability to wait on tasks and promises passed as errors to `.done()` or thrown by mappers, which was erroneously omitted in the rework.
 
 ### 0.5.0
 

@@ -32,12 +32,27 @@ export class Task {
       from mappers.
       */
       self.d = true
-      clearInnerTask(self)
+      clearInner(self)
 
       for (;;) {
+        if (isTask(err)) {
+          linkInnerTaskErr(self, err)
+          return
+        }
+
+        if (isPromise(err)) {
+          linkInnerPromiseErr(self, err)
+          return
+        }
+
         if (isTask(val)) {
           linkInnerTask(self, val)
-          break
+          return
+        }
+
+        if (isPromise(val)) {
+          linkInnerPromise(self, val)
+          return
         }
 
         let fun
@@ -79,13 +94,13 @@ export class Task {
 
   mapErr(fun) {
     validate(fun, isFunction)
-    this.map(asMapErr.bind(undefined, fun))
+    this.map(bind(asMapErr, fun))
     return this
   }
 
   mapVal(fun) {
     validate(fun, isFunction)
-    this.map(asMapVal.bind(undefined, fun))
+    this.map(bind(asMapVal, fun))
     return this
   }
 
@@ -93,7 +108,7 @@ export class Task {
   // is done, regardless of the result, and without changing the result.
   finally(fun) {
     validate(fun, isFunction)
-    this.map(finalize.bind(undefined, fun))
+    this.map(bind(finalize, fun))
     return this
   }
 
@@ -122,12 +137,12 @@ export class Task {
       deiniter()
     }
 
-    clearInnerTask(this)
+    clearInner(this)
   }
 
   toPromise() {
     if (this.isDone()) throw Error(`can't convert to promise: task is done`)
-    return new Promise(taskToPromise.bind(undefined, this))
+    return new Promise(bind(taskToPromise, this))
   }
 
   toString() {return 'Task'}
@@ -177,19 +192,38 @@ function collPush(items, item) {
   return items
 }
 
-function linkInnerTask(outer, inner) {
-  outer.i = inner
-  inner.map(transferInnerResult.bind(undefined, outer))
-}
-
-function transferInnerResult(outer, err, val) {
-  outer.done(err, val)
-}
-
-function clearInnerTask(outer) {
+function setInner(outer, innerNext) {
   const inner = outer.i
-  outer.i = undefined
-  if (inner) inner.deinit()
+  outer.i = innerNext
+  if (isTask(inner)) inner.deinit()
+}
+
+function clearInner(outer) {
+  setInner(outer, undefined)
+}
+
+function linkInnerTask(outer, inner) {
+  setInner(outer, inner.map(bind(transferTaskResult, outer)))
+}
+
+function linkInnerTaskErr(outer, inner) {
+  setInner(outer, inner.map(bind(transferTaskErr, outer)))
+}
+
+function linkInnerPromise(task, promise) {
+  setInner(task, promise.then(task.done.bind(task, undefined), task.done.bind(task)))
+}
+
+function linkInnerPromiseErr(task, promise) {
+  setInner(task, promise.then(task.done.bind(task), task.done.bind(task)))
+}
+
+function transferTaskResult(task, err, val) {
+  task.done(err, val)
+}
+
+function transferTaskErr(task, err, val) {
+  task.done(err || val)
 }
 
 /*
@@ -206,7 +240,7 @@ it to propagate to branches? Do we really want to?
 export function branch(task) {
   validate(task, isTask)
   const out = new Task()
-  task.map(copyResult.bind(undefined, out))
+  task.map(bind(copyResult, out))
   task.onDeinit(out.deinit.bind(out))
   return out
 }
@@ -231,7 +265,7 @@ function initAll(inputs, outputs) {
   const counter = {n: 0}
 
   each(inputs, initElement, inputs, outputs, task, counter)
-  task.onDeinit(deinitTasks.bind(undefined, inputs))
+  task.onDeinit(bind(deinitTasks, inputs))
 
   if (!counter.n) async.push(task, undefined, outputs)
   return task
@@ -240,7 +274,7 @@ function initAll(inputs, outputs) {
 function initElement(input, key, inputs, outputs, task, counter) {
   if (isTask(input)) {
     counter.n++
-    input.map(onElementDone.bind(undefined, key, inputs, outputs, task, counter))
+    input.map(bind(onElementDone, key, inputs, outputs, task, counter))
   }
   else {
     outputs[key] = input
@@ -270,9 +304,9 @@ export function race(inputs) {
   }
 
   const task = new Task()
-  const onDone = onRaceElementDone.bind(undefined, task, inputs)
+  const onDone = bind(onRaceElementDone, task, inputs)
   for (let i = 0; i < inputs.length; i += 1) inputs[i].map(onDone)
-  task.onDeinit(deinitTasks.bind(undefined, inputs))
+  task.onDeinit(bind(deinitTasks, inputs))
   return task
 }
 
@@ -283,13 +317,13 @@ function onRaceElementDone(task, inputs, err, val) {
 
 export function fromPromise(promise) {
   const out = new Task()
-  promise.then(out.done.bind(out, undefined), out.done.bind(out))
+  linkInnerPromise(out, promise)
   return out
 }
 
 function taskToPromise(task, res, rej) {
-  task.map(promiseSettle.bind(undefined, res, rej))
-  task.onDeinit(promiseDeinit.bind(undefined, rej))
+  task.map(bind(promiseSettle, res, rej))
+  task.onDeinit(bind(promiseDeinit, rej))
 }
 
 function promiseSettle(res, rej, err, val) {
@@ -491,6 +525,10 @@ function isInstance(val, Class) {
   return (isObject(val) || isFunction(val)) && val instanceof Class
 }
 
+function isPromise(val) {
+  return isObject(val) && isFunction(val.then)
+}
+
 function validate(val, test) {
   if (!test(val)) throw Error(`expected ${show(val)} to satisfy test ${show(test)}`)
 }
@@ -499,6 +537,10 @@ function show(val) {
   if (isFunction(val) && val.name) return val.name
   if (isArray(val) || isDict(val) || isString(val)) return JSON.stringify(val)
   return `${val}`
+}
+
+function bind(fun, ...args) {
+  return fun.bind(undefined, ...args)
 }
 
 function onlyArray(val) {
