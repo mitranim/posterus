@@ -1,7 +1,7 @@
 /*
 !/test
-!/.eslintrc
-!/.npmignore
 !/package.json
+!/.*ignore
+!/.*rc
 !/*.md
 !/*.mjs

@@ -23,7 +23,7 @@ export class Task {
 
   done(err, val) {
     const self = this
-    if (self.d) return
+    if (self.d) return undefined
 
     try {
       /*
@@ -37,22 +37,12 @@ export class Task {
       for (;;) {
         if (isTask(err)) {
           linkInnerTaskErr(self, err)
-          return
-        }
-
-        if (isPromise(err)) {
-          linkInnerPromiseErr(self, err)
-          return
+          return self
         }
 
         if (isTask(val)) {
           linkInnerTask(self, val)
-          return
-        }
-
-        if (isPromise(val)) {
-          linkInnerPromise(self, val)
-          return
+          return self
         }
 
         let fun
@@ -63,22 +53,25 @@ export class Task {
           fun = this.m
           this.m = undefined
         }
-        if (!fun) break
 
         if (err) val = undefined
         else err = undefined
 
-        try {
-          val = fun(err, val)
-          err = undefined
+        if (fun) {
+          try {
+            val = fun(err, val)
+            err = undefined
+          }
+          catch (error) {
+            val = undefined
+            err = error
+          }
+          continue
         }
-        catch (error) {
-          val = undefined
-          err = error
-        }
-      }
 
-      maybeThrow(err)
+        maybeThrow(err)
+        return val
+      }
     }
     finally {
       self.d = !self.i
@@ -214,10 +207,6 @@ function linkInnerPromise(task, promise) {
   setInner(task, promise.then(task.done.bind(task, undefined), task.done.bind(task)))
 }
 
-function linkInnerPromiseErr(task, promise) {
-  setInner(task, promise.then(task.done.bind(task), task.done.bind(task)))
-}
-
 function transferTaskResult(task, err, val) {
   task.done(err, val)
 }
@@ -251,40 +240,40 @@ function copyResult(out, err, val) {
   return val
 }
 
-export function all(inputs) {
-  inputs = onlyArray(inputs)
-  return initAll(inputs, Array(inputs.length))
+export function all(vals) {
+  vals = onlyArray(vals)
+  return initAll(vals, Array(vals.length))
 }
 
-export function dictAll(inputs) {
-  return initAll(onlyDict(inputs), {})
+export function dictAll(vals) {
+  return initAll(onlyDict(vals), {})
 }
 
-function initAll(inputs, outputs) {
+function initAll(vals, outputs) {
   const task = new Task()
   const counter = {n: 0}
 
-  each(inputs, initElement, inputs, outputs, task, counter)
-  task.onDeinit(bind(deinitTasks, inputs))
+  each(vals, initElement, vals, outputs, task, counter)
+  task.onDeinit(bind(deinitTasks, vals))
 
   if (!counter.n) async.push(task, undefined, outputs)
   return task
 }
 
-function initElement(input, key, inputs, outputs, task, counter) {
+function initElement(input, key, vals, outputs, task, counter) {
   if (isTask(input)) {
     counter.n++
-    input.map(bind(onElementDone, key, inputs, outputs, task, counter))
+    input.map(bind(onElementDone, key, vals, outputs, task, counter))
   }
   else {
     outputs[key] = input
   }
 }
 
-function onElementDone(key, inputs, outputs, task, counter, err, val) {
+function onElementDone(key, vals, outputs, task, counter, err, val) {
   if (err) {
     task.done(err)
-    deinitTasks(inputs)
+    deinitTasks(vals)
   }
   else {
     outputs[key] = val
@@ -292,33 +281,40 @@ function onElementDone(key, inputs, outputs, task, counter, err, val) {
   }
 }
 
-export function race(inputs) {
-  inputs = onlyArray(inputs)
+export function race(vals) {
+  vals = onlyArray(vals)
 
-  if (!inputs.length) return async.fromVal()
+  if (!vals.length) return async.fromVal()
 
-  const nonTaskIndex = inputs.findIndex(isNonTask)
+  const nonTaskIndex = vals.findIndex(isNonTask)
   if (nonTaskIndex >= 0) {
-    deinitTasks(inputs)
-    return async.fromVal(inputs[nonTaskIndex])
+    deinitTasks(vals)
+    return async.fromVal(vals[nonTaskIndex])
   }
 
   const task = new Task()
-  const onDone = bind(onRaceElementDone, task, inputs)
-  for (let i = 0; i < inputs.length; i += 1) inputs[i].map(onDone)
-  task.onDeinit(bind(deinitTasks, inputs))
+  const onDone = bind(onRaceElementDone, task, vals)
+  for (let i = 0; i < vals.length; i += 1) vals[i].map(onDone)
+  task.onDeinit(bind(deinitTasks, vals))
   return task
 }
 
-function onRaceElementDone(task, inputs, err, val) {
+function onRaceElementDone(task, vals, err, val) {
   task.done(err, val)
-  deinitTasks(inputs)
+  deinitTasks(vals)
 }
 
 export function fromPromise(promise) {
   const out = new Task()
   linkInnerPromise(out, promise)
   return out
+}
+
+// Should this be a method of `Scheduler`?
+export function toTask(val) {
+  if (isTask(val)) return val
+  if (isPromise(val)) return fromPromise(val)
+  return async.fromVal(val)
 }
 
 function taskToPromise(task, res, rej) {
@@ -472,14 +468,14 @@ function chooseAsync(fun) {
 }
 /* eslint-enable no-restricted-globals */
 
-function each(inputs, fun, ...args) {
-  if (isArray(inputs)) {
-    for (let i = 0; i < inputs.length; i += 1) {
-      fun(inputs[i], i, ...args)
+function each(vals, fun, ...args) {
+  if (isArray(vals)) {
+    for (let i = 0; i < vals.length; i += 1) {
+      fun(vals[i], i, ...args)
     }
   }
   else {
-    for (const key in inputs) fun(inputs[key], key, ...args)
+    for (const key in vals) fun(vals[key], key, ...args)
   }
 }
 

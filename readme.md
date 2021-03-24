@@ -12,17 +12,17 @@ Main differences from promises:
 * Supports cancelation.
 * Mostly synchronous.
 * Exposes its [scheduler](#async), allowing to opt into asynchrony, and _opt out_ by flushing pending tasks on demand.
-* Supports `errback`: single callback that receives `err, val`.
+* Supports "errbacks": single callback that receives "err, val".
 * Constructor doesn't require a callback.
 * Mapping mutates the task instead of allocating new instances.
 * Doesn't store results.
 * Dramatically simpler and faster.
 
-Small (≈10 KiB unminified) and dependency-free. Usable as a native JS module.
+Small (<12 KiB unminified) and dependency-free. Usable as a native JS module.
 
-Optionally supports coroutines/fibers (≈2 KiB unminified). Replacement for async/await, with implicit ownership and cancelation of in-progress work. Compatible with promises. See [`fiber`](#fiberiter).
+Optionally supports coroutines/fibers (<2 KiB unminified). Replacement for async/await, with implicit ownership and cancelation of in-progress work. See [`fiber`](#fiberiter).
 
-Convertible [to](#tasktopromise) and [from](#frompromisepromise) promises. Where possible, promises are automatically converted to tasks.
+Convertible [to](#tasktopromise) and [from](#frompromisepromise) promises.
 
 ## TOC
 
@@ -425,9 +425,9 @@ Settles the task with the provided error and result. Similar to the `resolve` an
 
 The task is considered rejected if `error` is truthy, and successful otherwise, like in a typical Node errback.
 
-Unlike promises, a task runs its callbacks _synchronously_. If there's an unhandled error, the caller of `.done()` can/must handle it via try/catch. This dramatically simplifies the implementantion, the mental model, and helps to avoid unhandled promise rejections.
+Unlike promises, a task runs its callbacks _synchronously_. If there's an unhandled error, the caller of `.done()` can/must handle it via try/catch. This dramatically simplifies the implementantion, the mental model, and helps to avoid unhandled rejections.
 
-Either `err` or `val` can be a task or a promise. In this case, it's "flattened": the current task will wait for its completion. In addition, the current task takes "ownership" of any task passed to `.done()`, and will deinit it alongside itself on a call to [`.deinit()`](#taskdeinit).
+Either `err` or `val` can be a task. In this case, it's "flattened": the current task will wait for its completion. In addition, the current task takes "ownership" of any task passed to `.done()`, and will deinit it alongside itself on a call to [`.deinit()`](#taskdeinit).
 
 If the task has previosly been settled or deinited, this is a no-op.
 
@@ -468,7 +468,7 @@ Compared to promises, this is like a combination of `.then()` and `.catch()` int
 
 Because Posterus tasks don't store their results, calling `.map()` after the task is settled (via `.done()`) produces a synchronous exception. For asynchrony, use [`async`](#async) and [`AsyncTask`](#asynctask).
 
-Just like [`.done()`](#taskdoneerr-val), this automatically "flattens" the tasks returned or thrown by the mapper(s), eventually resolving to non-task values. This is known as "flatmap" in some languages. Also, just like `.done()`, this supports promises.
+Just like [`.done()`](#taskdoneerr-val), this automatically "flattens" the tasks returned or thrown by the mapper(s), eventually resolving to non-task values. This is known as "flatmap" in some languages.
 
 Takes "ownership" of any task returned or thrown by a mapper, and will deinit the inner task on a call to [`.deinit()`](#taskdeinit).
 
@@ -851,7 +851,7 @@ const task = p.fromPromise(promise)
 
 ### `fiber(iter)`
 
-Optional coroutine implementation for Posterus tasks. Replacement for `async/await`, with implicit cancelation of in-progress work. Compatible with promises.
+Optional coroutine implementation for Posterus tasks. Replacement for `async/await`, with implicit cancelation of in-progress work.
 
 Deiniting a fiber that's currently yielded to an inner task/fiber will also deinit the inner task/fiber.
 
@@ -876,6 +876,32 @@ task.deinit()
 ```
 
 ## Changelog
+
+### 0.6.0
+
+**Revised fibers**: dramatically simpler, more efficient, fully synchronous by default. Async is opt-in. Breaking API changes:
+
+  * `pf.fiber` now wraps a generator function, returning a function that uses `pf.fromIter`.
+
+  * Added `pf.fiberAsync`: wraps a generator function, returning a function that uses `pf.fromIterAsync`.
+
+  * Added `pf.fromIter`: takes an iterator and immediately executes, returning a non-task value if possible, otherwise returning a pending task.
+
+  * Added `pf.fromIterAsync`: takes an iterator and schedules its execution on the default `p.Scheduler` (`p.async`), returning a pending task.
+
+**Breaking**: removed automatic from-promise conversion. When using promise-returning functions, follow up with `p.fromPromise`:
+
+```js
+const task = new p.Task()
+
+task
+  .mapVal(() => Promise.resolve('val'))
+  .mapVal(p.fromPromise)
+
+task.done(undefined, p.fromPromise(Promise.resolve('val')))
+```
+
+Relatively **non-breaking**: `task.done()` now returns either the resulting value (if finished just now), or the task itself (if pending). The value is not stored; subsequent `task.done()` on a completed task returns `undefined`. This is useful in edge cases; for example, it allows the fiber implementation to be significantly simpler and more efficient.
 
 ### 0.5.1
 

@@ -1,12 +1,12 @@
 {
   "name": "posterus",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Composable async primitives (tasks) with cancelation and control over scheduling. Includes optional courotune implementation.",
   "type": "module",
   "main": "./posterus.mjs",
   "scripts": {
     "test": "node ./test/test.mjs",
-    "prepublishOnly": "npm test"
+    "prepublishOnly": "npm run -s test"
   },
   "keywords": [
     "future",

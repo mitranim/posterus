@@ -4,100 +4,98 @@ Generator-based coroutines for Posterus. Usage:
   import * as p from 'posterus'
   import * as pf from 'posterus/fiber.mjs'
 
-  // Returns a running instance of Posterus `Task`.
-  const task = pf.fiber(function*() {
+  // Wrap a generator function; the resulting function returns tasks.
+  const someFunc = pf.fiberAsync(function*() {
     yield someTask
     yield someTask
     return someValue
   })
+
+  // Calling returns a running `Task`.
+  const task = someFunc()
 */
+
+/* eslint-disable no-invalid-this */
 
 import * as p from './posterus.mjs'
 
-export function fiber(iter) {
-  validate(iter, isIterator)
-
-  const out = new p.Task()
-  let inner
-
-  function iterNext(input) {
-    try {onIterNext(iter.next(input))}
-    catch (err) {onDone(err)}
+export class Fiber extends p.Task {
+  constructor(iter) {
+    validate(iter, isIter)
+    super()
+    this.t = iter
   }
 
-  function iterThrow(err) {
-    try {onIterNext(iter.throw(err))}
-    catch (err) {onDone(err)}
-  }
+  done(err, val) {
+    try {
+      const {value, done} = err ? this.t.throw(err) : this.t.next(val)
 
-  function onIterNext(next) {
-    const val = next.value
+      err = undefined
+      val = maybeFromIter(value)
+      if (done) this.done = super.done
 
-    if (next.done) {
-      onDone(undefined, val)
-      return
+      if (p.isTask(val)) return super.done(err, val)
+      return this.done(err, val)
     }
-
-    if (isIterator(val)) {
-      inner = fiber(val)
-      inner = inner.map(onInnerDone)
-      return
+    catch (err) {
+      return super.done(err)
     }
-
-    if (p.isTask(val)) {
-      inner = val.map(onInnerDone)
-      return
-    }
-
-    iterNext(val)
   }
-
-  function onInnerDone(err, val) {
-    inner = undefined
-    if (err) iterThrow(err)
-    else iterNext(val)
-  }
-
-  function onDone(err, val) {
-    if (err) out.done(err)
-    else if (isIterator(val)) out.done(undefined, fiber(val))
-    else if (p.isTask(val)) out.done(undefined, val)
-    // Questionable
-    else p.async.push(out, undefined, val)
-    cleanup()
-  }
-
-  function cleanup() {
-    if (inner) inner.deinit()
-    inner = undefined
-    iter.return()
-  }
-
-  out.onDeinit(cleanup)
-
-  // The first .next() call "enters" the iterator, ignoring the input
-  iterNext()
-
-  return out
 }
 
-function isIterator(value) {
+export function fiber(fun) {
+  validate(fun, isGen)
+  return fromGen.bind(fun)
+}
+
+export function fiberAsync(fun) {
+  validate(fun, isGen)
+  return fromGenAsync.bind(fun)
+}
+
+export function fromIter(iter) {
+  return new Fiber(iter).done()
+}
+
+export function fromIterAsync(iter) {
+  const fib = new Fiber(iter)
+  p.async.push(fib)
+  return fib
+}
+
+function fromGen() {
+  return fromIter(this(...arguments))
+}
+
+function fromGenAsync() {
+  return fromIterAsync(this(...arguments))
+}
+
+function isIter(val) {
   return (
-    isObject(value) &&
-    isFunction(value.next) &&
-    isFunction(value.return) &&
-    isFunction(value.throw)
+    isObject(val) &&
+    isFunction(val.next) &&
+    isFunction(val.return) &&
+    isFunction(val.throw)
   )
 }
 
-function isFunction(value) {
-  return typeof value === 'function'
+function maybeFromIter(val) {return isIter(val) ? fromIter(val) : val}
+
+function isGen(val) {
+  return isFunction(val) && val.constructor === GeneratorFunction
 }
 
-function isObject(value) {
-  return value != null && typeof value === 'object'
+const GeneratorFunction = (function* () {}).constructor // eslint-disable-line func-names
+
+function isFunction(val) {
+  return typeof val === 'function'
 }
 
-function validate(value, test) {
-  if (!test(value)) throw Error(`expected ${value} to satisfy test ${test.name}`)
+function isObject(val) {
+  return val != null && typeof val === 'object'
+}
+
+function validate(val, test) {
+  if (!test(val)) throw Error(`expected ${val} to satisfy test ${test.name}`)
 }

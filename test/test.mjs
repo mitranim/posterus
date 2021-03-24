@@ -2,14 +2,6 @@ import * as t from './utils.mjs'
 import * as p from '../posterus.mjs'
 import * as pf from '../fiber.mjs'
 
-/*
-Note: after the 0.5.0 rewrite, the test suite had to be rewritten and might be
-incomplete. Posterus 0.5.0 was used in production for 1-2 years without any
-issues, but there might still be edge cases that never came to light. The old
-suite is not applicable because it was designed for asynchronous completion,
-which no longer exists.
-*/
-
 t.runWithTimeout(async function test() {
   void function isTask() {
     t.is(p.isTask(new p.Task()), true)
@@ -50,10 +42,13 @@ t.runWithTimeout(async function test() {
 
   void function doneCallsMapWithError() {
     const task = new p.Task()
+    const err = Error('err')
+
     let args
     task.map((...a) => {args = a})
-    task.done('err', undefined)
-    t.eq(args, ['err', undefined])
+    task.done(err, undefined)
+
+    t.eq(args, [err, undefined])
   }()
 
   void function doneCallsMapWithValue() {
@@ -74,10 +69,13 @@ t.runWithTimeout(async function test() {
 
   void function doneOrMapVoidsUnusedResult() {
     const task = new p.Task()
+    const err = Error('err')
+
     let args
     task.map((...a) => {args = a})
-    task.done('err', 'unused')
-    t.eq(args, ['err', undefined])
+    task.done(err, 'unused')
+
+    t.eq(args, [err, undefined])
   }()
 
   await async function mapRequiresFunction() {
@@ -100,16 +98,19 @@ t.runWithTimeout(async function test() {
     const task = new p.Task()
     task.map(() => {throw Error('test error')})
     await t.throws(() => {task.done()}, 'test error')
-  },
+  }()
 
   void function mapHandlesPreviousError() {
     const task = new p.Task()
-    task.map(() => {throw 'err'})
+    const err = Error('err')
+
+    task.map(() => {throw err})
 
     let args
     task.map((...a) => {args = a})
     task.done()
-    t.eq(args, ['err', undefined])
+
+    t.eq(args, [err, undefined])
   }()
 
   void function mapChangesValue() {
@@ -148,7 +149,7 @@ t.runWithTimeout(async function test() {
 
   void function mapVoidsUnusedError() {
     const task = new p.Task()
-    task.map(() => {throw ''})
+    task.map(() => {throw Error('err')})
     task.map(() => 'val')
 
     let args
@@ -159,24 +160,28 @@ t.runWithTimeout(async function test() {
 
   void function mapVoidsUnusedResult() {
     const task = new p.Task()
+    const err = Error('err')
+
     task.map(() => 'unused')
-    task.map(() => {throw 'err'})
+    task.map(() => {throw err})
 
     let args
     task.map((...a) => {args = a})
     task.done()
-    t.eq(args, ['err', undefined])
+    t.eq(args, [err, undefined])
   }()
 
   void function doneConsumesAndFlattensInnerTaskError() {
     const inner = new p.Task()
     const outer = new p.Task()
+    const err = Error('err')
+
     outer.done(undefined, inner)
 
     let args
     outer.map((...a) => {args = a})
-    inner.done('err', undefined)
-    t.eq(args, ['err', undefined])
+    inner.done(err, undefined)
+    t.eq(args, [err, undefined])
   }()
 
   void function doneConsumesAndFlattensInnerTaskValue() {
@@ -235,7 +240,6 @@ t.runWithTimeout(async function test() {
     task.map((...a) => {args = a})
 
     await promise
-
     t.eq(args, [undefined, 10])
   }()
 
@@ -247,40 +251,70 @@ t.runWithTimeout(async function test() {
     task.map((...a) => {args = a})
 
     await task.toPromise()
-
     t.eq(args, ['test error', undefined])
-  },
+  }()
 
-  void function fiber() {
-    const task = pf.fiber(outer('one'))
+  void function fibers() {
+    function* inner(val) {return val}
 
     function* outer(val) {
       val = yield inner(val)
       return val + (yield inner(' two'))
     }
 
-    function* inner(val) {return val}
+    void function fromIterSyncVal() {
+      const val = pf.fromIter(outer('one'))
+      t.eq(val, 'one two')
+    }()
 
-    let args
-    task.map((...a) => {args = a})
+    void function fromIterSyncTask() {
+      const task = pf.fromIter(outer(p.async.fromVal('one')))
 
-    p.async.tick()
+      let args
+      task.map((...a) => {args = a})
 
-    t.eq(args, [undefined, 'one two'])
-  }()
+      p.async.tick()
+      t.eq(args, [undefined, 'one two'])
+    }()
 
-  void function fiberDeinit() {
-    function* outer() {
-      yield inner()
-    }
+    void function fromIterAsync() {
+      const task = pf.fromIterAsync(outer('one'))
 
-    function* inner() {
-      const task = new p.Task()
-      task.onDeinit(() => {throw Error('test error')})
-      yield task
-    }
+      let args
+      task.map((...a) => {args = a})
 
-    t.throws(() => pf.fiber(outer()).deinit(), 'test error')
+      p.async.tick()
+      t.eq(args, [undefined, 'one two'])
+    }()
+
+    void function fiber() {
+      const val = pf.fiber(outer)('one')
+      t.eq(val, 'one two')
+    }()
+
+    void function fiberAsync() {
+      const task = pf.fiberAsync(outer)('one')
+
+      let args
+      task.map((...a) => {args = a})
+
+      p.async.tick()
+      t.eq(args, [undefined, 'one two'])
+    }()
+
+    void function fiberDeinit() {
+      function* inner() {
+        const task = new p.Task()
+        task.onDeinit(() => {throw Error('test error')})
+        yield task
+      }
+
+      function* outer() {
+        yield inner()
+      }
+
+      t.throws(() => pf.fromIter(outer()).deinit(), 'test error')
+    }()
   }()
 
   void function branchOk() {
@@ -304,7 +338,8 @@ t.runWithTimeout(async function test() {
   }()
 
   void function branchFail() {
-    const task = p.async.fromErr('err')
+    const err = Error('err')
+    const task = p.async.fromErr(err)
     const branch0 = p.branch(task)
     const branch1 = p.branch(task)
 
@@ -318,9 +353,9 @@ t.runWithTimeout(async function test() {
     branch1.map((...a) => {args1 = a})
 
     p.async.tick()
-    t.eq(args, ['err', undefined])
-    t.eq(args0, ['err', undefined])
-    t.eq(args1, ['err', undefined])
+    t.eq(args, [err, undefined])
+    t.eq(args0, [err, undefined])
+    t.eq(args1, [err, undefined])
   }()
 
   void function branchDeinitUpstream() {
@@ -361,8 +396,10 @@ t.runWithTimeout(async function test() {
   }()
 
   void function allFail() {
+    const err = Error('err')
+
     const task = p.all([
-      p.async.fromErr('err'),
+      p.async.fromErr(err),
       p.async.fromVal().mapVal(t.panic),
     ])
 
@@ -370,7 +407,7 @@ t.runWithTimeout(async function test() {
     task.map((...a) => {args = a})
 
     p.async.tick()
-    t.eq(args, ['err', undefined])
+    t.eq(args, [err, undefined])
   }()
 
   void function raceOk() {
@@ -389,8 +426,10 @@ t.runWithTimeout(async function test() {
   }()
 
   void function raceFail() {
+    const err = Error('err')
+
     const task = p.race([
-      p.async.fromErr('err'),
+      p.async.fromErr(err),
       p.async.fromVal('val'),
       p.async.fromVal().mapVal(t.panic),
     ])
@@ -399,65 +438,7 @@ t.runWithTimeout(async function test() {
     task.map((...a) => {args = a})
 
     p.async.tick()
-    t.eq(args, ['err', undefined])
-  }()
-
-  await async function autoConvertPromises() {
-    await async function doneErr() {
-      const task = new p.Task()
-
-      let args
-      task.map((...a) => {args = a})
-
-      task.done(undefined, Promise.reject('err'))
-      await task.toPromise()
-
-      t.eq(args, ['err', undefined])
-    }()
-
-    await async function doneVal() {
-      const task = new p.Task()
-
-      let args
-      task.map((...a) => {args = a})
-
-      task.done(undefined, Promise.resolve('val'))
-      await task.toPromise()
-
-      t.eq(args, [undefined, 'val'])
-    }()
-
-    await async function mapperErr() {
-      const task = new p.Task()
-
-      task.map(() => {
-        throw Promise.reject('err')
-      })
-
-      let args
-      task.map((...a) => {args = a})
-
-      task.done()
-      await task.toPromise()
-
-      t.eq(args, ['err', undefined])
-    }()
-
-    await async function mapperVal() {
-      const task = new p.Task()
-
-      task.map(() => {
-        return Promise.resolve('val')
-      })
-
-      let args
-      task.map((...a) => {args = a})
-
-      task.done()
-      await task.toPromise()
-
-      t.eq(args, [undefined, 'val'])
-    }()
+    t.eq(args, [err, undefined])
   }()
 }).then(() => {
   console.log('[test] ok')
