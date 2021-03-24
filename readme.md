@@ -20,7 +20,7 @@ Main differences from promises:
 
 Small (<12 KiB unminified) and dependency-free. Usable as a native JS module.
 
-Optionally supports coroutines/fibers (<2 KiB unminified). Replacement for async/await, with implicit ownership and cancelation of in-progress work. See [`fiber`](#fiberiter).
+Optionally supports coroutines/fibers (<2 KiB unminified). Replacement for async/await, with implicit ownership and cancelation of in-progress work. See [API (`fiber.mjs`)](#api-fibermjs).
 
 Convertible [to](#tasktopromise) and [from](#frompromisepromise) promises.
 
@@ -57,7 +57,13 @@ Convertible [to](#tasktopromise) and [from](#frompromisepromise) promises.
   * [`dictAll(dict)`](#dictalldict)
   * [`race(list)`](#racelist)
   * [`fromPromise(promise)`](#frompromisepromise)
-  * [`fiber(iter)`](#fiberiter)
+  * [`toTask(val)`](#totaskval)
+* [API (`fiber.mjs`)](#api-fibermjs)
+  * [`Fiber()`](#fiber)
+  * [`fiber(fun)`](#fiberfun)
+  * [`fiberAsync(fun)`](#fiberasyncfun)
+  * [`fromIter(iter)`](#fromiteriter)
+  * [`fromIterAsync(iter)`](#fromiterasynciter)
 * [Changelog](#changelog)
 
 ## Why
@@ -842,37 +848,167 @@ function panic() {
 
 ### `fromPromise(promise)`
 
-Interop utility. Converts a promise to a task:
+Interop utility. Converts a promise to a task. Also see [`toTask`](#totaskval).
 
 ```js
 const promise = Promise.resolve('<value>')
 const task = p.fromPromise(promise)
 ```
 
-### `fiber(iter)`
+### `toTask(val)`
 
-Optional coroutine implementation for Posterus tasks. Replacement for `async/await`, with implicit cancelation of in-progress work.
+Interop utility. Converts any value to a task. Tasks are returned as-is; promises are converted via `fromPromise`; other values are scheduled on the default scheduler instance via [`scheduler.fromVal(val)`](#schedulerfromvalval).
 
-Deiniting a fiber that's currently yielded to an inner task/fiber will also deinit the inner task/fiber.
+```js
+const task0 = p.toTask(p.async.fromVal(10)) // Returned as-is.
+const task1 = p.toTask(Promise.resolve(20))
+const task2 = p.toTask(30)
+```
+
+## API (`fiber.mjs`)
+
+The optional module `posterus/fiber.mjs` implements fibers (coroutines) via generators. Superior replacement for `async` / `await`, with implicit cancelation of in-progress work.
+
+Basic usage:
 
 ```js
 import * as p from 'posterus'
-import {fiber} from 'posterus/fiber.mjs'
+import * as pf from 'posterus/fiber.mjs'
 
-const task = fiber(outer('one'))
-
-function* outer(val) {
-  val = yield inner(val)
-  return val + yield inner(' two')
+function* simpleGen(val) {
+  val = yield val
+  return val
 }
 
-function* inner(val) {return val}
+const fiberSync = pf.fiber(simpleGen)
+const fiberAsync = pf.fiberAsync(simpleGen)
 
-// Logs 'one two'.
-task.mapVal(console.log)
+const val = fiberSync('val')
+const task = fiberAsync('val')
+```
 
-// Abort work in progress.
+Fibers are composable: they can wait on tasks or iterators returned by generator functions. They support automatic cleanup: deiniting an outer fiber that's blocked on an inner fiber will deinit both.
+
+```js
+import * as p from 'posterus'
+import * as pf from 'posterus/fiber.mjs'
+
+const outer = pf.fiber(function* (val) {
+  val = yield inner(val)
+  return val + 10
+})
+
+const inner = pf.fiber(function* (val) {
+  val = yield p.async.fromVal(val)
+  return val + 10
+})
+
+// Currently waiting on `inner` and `fromVal`.
+const task = outer(10)
+
+task.mapVal(console.log) // Would log "30" unless deinited.
+
+// Deinits all three tasks: outer, inner, and `fromVal`.
 task.deinit()
+```
+
+### `Fiber()`
+
+Subclass of [`Task`](#task) that tracks the lifecycle of an iterator object returned by a generator function. Created by all functions in this module. You shouldn't need to construct it directly, but it's exported for completeness, as a building block.
+
+A newly-constructed `Fiber` is inert; it doesn't immediately "enter" the procedure, and is pending forever. To start it, call `.done()`.
+
+```js
+function* gen() {}
+
+const fib = new pf.Fiber(gen())
+
+fib.map((err, val) => {/* ... */})
+
+// Starts execution. May synchronously return the result, if possible.
+const val = fib.done()
+```
+
+### `fiber(fun)`
+
+Wraps a generator function. The resulting function invokes [`fromIter`](#fromiteriter), returning either the resulting value (if possible), or a pending task.
+
+```js
+const fibSync = pf.fiber(function* genSync(val) {
+  val = (yield val) + 10
+  return val
+})
+
+const fibAsync = pf.fiber(function* genAsync(val) {
+  val = (yield p.async.fromVal(val)) + 10
+  return val
+})
+
+console.log(fibSync(10))         // 20
+console.log(fibAsync(10))        // Task {}
+fibAsync(10).mapVal(console.log) // 20
+```
+
+### `fiberAsync(fun)`
+
+Wraps a generator function. The resulting function invokes [`fromIterAsync`](#fromiterasynciter), always returning a pending task. Note that `fromIterAsync` does _not_ immediately start execution; the wrapped function is always scheduled to execute asynchronously, but can be flushed synchronously via [`async.tick()`](#schedulertick).
+
+```js
+const fibAsync0 = pf.fiberAsync(function* genSync(val) {
+  val = (yield val) + 10
+  return val
+})
+
+const fibAsync1 = pf.fiberAsync(function* genAsync(val) {
+  val = (yield p.async.fromVal(val)) + 10
+  return val
+})
+
+console.log(fibAsync0(10))        // Task {}
+console.log(fibAsync1(10))        // Task {}
+fibAsync0(10).mapVal(console.log) // 20
+fibAsync1(10).mapVal(console.log) // 20
+```
+
+### `fromIter(iter)`
+
+Takes an iterator object (returned by calling a generator function) and attempts to execute it synchronously. If successful, returns the resulting value or throws an error. Otherwise, returns a pending task.
+
+```js
+function* genSync(val) {
+  val = (yield val) + 10
+  return val
+}
+
+function* genAsync(val) {
+  val = (yield p.async.fromVal(val)) + 10
+  return val
+}
+
+const val  = pf.fromIter(genSync(10))  // 20
+const task = pf.fromIter(genAsync(10)) // Task {}
+task.mapVal(console.log)               // 20
+```
+
+### `fromIterAsync(iter)`
+
+Takes an iterator object (returned by calling a generator function) and schedules it to be executed asynchronously, on the default scheduler [instance](#async). Returns a pending task. Can be flushed synchronously via [`async.tick()`](#schedulertick).
+
+```js
+function* genSync(val) {
+  val = (yield val) + 10
+  return val
+}
+
+function* genAsync(val) {
+  val = (yield p.async.fromVal(val)) + 10
+  return val
+}
+
+const task0 = pf.fromIterAsync(genSync(10))  // Task {}
+const task1 = pf.fromIterAsync(genAsync(10)) // Task {}
+task0.mapVal(console.log)                    // 20
+task1.mapVal(console.log)                    // 20
 ```
 
 ## Changelog
@@ -902,6 +1038,8 @@ task.done(undefined, p.fromPromise(Promise.resolve('val')))
 ```
 
 Relatively **non-breaking**: `task.done()` now returns either the resulting value (if finished just now), or the task itself (if pending). The value is not stored; subsequent `task.done()` on a completed task returns `undefined`. This is useful in edge cases; for example, it allows the fiber implementation to be significantly simpler and more efficient.
+
+**Non-breaking**: added `toTask` for converting arbitrary values to tasks.
 
 ### 0.5.1
 
