@@ -1,7 +1,7 @@
 /*
 !/test
 !/package.json
-!/.*ignore
-!/.*rc
+!/*.ignore
+!/*.rc
 !/*.md
 !/*.mjs

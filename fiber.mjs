@@ -1,19 +1,4 @@
-/*
-Generator-based coroutines for Posterus. Usage:
-
-  import * as p from 'posterus'
-  import * as pf from 'posterus/fiber.mjs'
-
-  // Wrap a generator function; the resulting function returns tasks.
-  const someFunc = pf.fiberAsync(function*() {
-    yield someTask
-    yield someTask
-    return someValue
-  })
-
-  // Calling returns a running `Task`.
-  const task = someFunc()
-*/
+// Optional generator-based coroutines for Posterus.
 
 /* eslint-disable no-invalid-this */
 
@@ -21,35 +6,38 @@ import * as p from './posterus.mjs'
 
 export class Fiber extends p.Task {
   constructor(iter) {
-    validate(iter, isIter)
+    valid(iter, isIter)
     super()
     this.t = iter
   }
 
   done(err, val) {
     try {
-      const {value, done} = err ? this.t.throw(err) : this.t.next(val)
+      const next = err ? this.t.throw(err) : this.t.next(val)
 
       err = undefined
-      val = maybeFromIter(value)
-      if (done) this.done = super.done
+      val = maybeFromIter(next.value)
 
-      if (p.isTask(val)) return super.done(err, val)
-      return this.done(err, val)
+      if (next.done) this.done = super.done
     }
     catch (err) {
-      return super.done(err)
+      this.d = false
+      this.done = super.done
+      return this.done(err)
     }
+
+    if (p.isTask(val)) return super.done(err, val)
+    return this.done(err, val)
   }
 }
 
 export function fiber(fun) {
-  validate(fun, isGen)
+  valid(fun, isGen)
   return fromGen.bind(fun)
 }
 
 export function fiberAsync(fun) {
-  validate(fun, isGen)
+  valid(fun, isGen)
   return fromGenAsync.bind(fun)
 }
 
@@ -73,29 +61,21 @@ function fromGenAsync() {
 
 function isIter(val) {
   return (
-    isObject(val) &&
-    isFunction(val.next) &&
-    isFunction(val.return) &&
-    isFunction(val.throw)
+    isObj(val) &&
+    isFun(val.next) &&
+    isFun(val.return) &&
+    isFun(val.throw)
   )
 }
 
 function maybeFromIter(val) {return isIter(val) ? fromIter(val) : val}
 
-function isGen(val) {
-  return isFunction(val) && val.constructor === GeneratorFunction
-}
-
 const GeneratorFunction = (function* () {}).constructor // eslint-disable-line func-names
 
-function isFunction(val) {
-  return typeof val === 'function'
-}
+function isGen(val) {return isFun(val) && val.constructor === GeneratorFunction}
+function isFun(val) {return typeof val === 'function'}
+function isObj(val) {return val != null && typeof val === 'object'}
 
-function isObject(val) {
-  return val != null && typeof val === 'object'
-}
-
-function validate(val, test) {
+function valid(val, test) {
   if (!test(val)) throw Error(`expected ${val} to satisfy test ${test.name}`)
 }

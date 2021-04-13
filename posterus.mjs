@@ -1,13 +1,13 @@
 export function isTask(val) {
-  return isObject(val) &&
-    isFunction(val.isDone) &&
-    isFunction(val.map) &&
-    isFunction(val.mapErr) &&
-    isFunction(val.mapVal) &&
-    isFunction(val.finally) &&
-    isFunction(val.onDeinit) &&
-    isFunction(val.done) &&
-    isFunction(val.deinit)
+  return isObj(val) &&
+    isFun(val.isDone) &&
+    isFun(val.map) &&
+    isFun(val.mapErr) &&
+    isFun(val.mapVal) &&
+    isFun(val.finally) &&
+    isFun(val.onDeinit) &&
+    isFun(val.done) &&
+    isFun(val.deinit)
 }
 
 export class Task {
@@ -79,20 +79,20 @@ export class Task {
   }
 
   map(fun) {
-    validate(fun, isFunction)
+    valid(fun, isFun)
     if (this.d) throw Error(`can't map: task is done`)
     this.m = collPush(this.m, fun)
     return this
   }
 
   mapErr(fun) {
-    validate(fun, isFunction)
+    valid(fun, isFun)
     this.map(bind(asMapErr, fun))
     return this
   }
 
   mapVal(fun) {
-    validate(fun, isFunction)
+    valid(fun, isFun)
     this.map(bind(asMapVal, fun))
     return this
   }
@@ -100,13 +100,13 @@ export class Task {
   // Conceptually similar to "try/finally". The function will run when the task
   // is done, regardless of the result, and without changing the result.
   finally(fun) {
-    validate(fun, isFunction)
+    valid(fun, isFun)
     this.map(bind(finalize, fun))
     return this
   }
 
   onDeinit(fun) {
-    validate(fun, isFunction)
+    valid(fun, isFun)
     if (this.d) throw Error(`can't deinit: task is done`)
     this.e = collPush(this.e, fun)
   }
@@ -167,7 +167,7 @@ const ARRAY_THRESHOLD = 20
 function collPush(items, item) {
   if (!items) return item
 
-  if (isArray(items)) {
+  if (isArr(items)) {
     if (items.length > ARRAY_THRESHOLD) {
       items = new Que(items)
     }
@@ -175,7 +175,7 @@ function collPush(items, item) {
     return items
   }
 
-  if (isInstance(items, Que)) {
+  if (isInst(items, Que)) {
     items.push(item)
     return items
   }
@@ -227,7 +227,7 @@ Minor design issue: can we simultaneously handle the original's error and allow
 it to propagate to branches? Do we really want to?
 */
 export function branch(task) {
-  validate(task, isTask)
+  valid(task, isTask)
   const out = new Task()
   task.map(bind(copyResult, out))
   task.onDeinit(out.deinit.bind(out))
@@ -241,12 +241,12 @@ function copyResult(out, err, val) {
 }
 
 export function all(vals) {
-  vals = onlyArray(vals)
+  vals = arr(vals)
   return initAll(vals, Array(vals.length))
 }
 
 export function dictAll(vals) {
-  return initAll(onlyDict(vals), {})
+  return initAll(dict(vals), {})
 }
 
 function initAll(vals, outputs) {
@@ -282,7 +282,7 @@ function onElementDone(key, vals, outputs, task, counter, err, val) {
 }
 
 export function race(vals) {
-  vals = onlyArray(vals)
+  vals = arr(vals)
 
   if (!vals.length) return async.fromVal()
 
@@ -305,6 +305,7 @@ function onRaceElementDone(task, vals, err, val) {
 }
 
 export function fromPromise(promise) {
+  valid(promise, isPromise)
   const out = new Task()
   linkInnerPromise(out, promise)
   return out
@@ -349,7 +350,7 @@ Adapted from https://github.com/creationix/fastqueue. Modifications:
 export class Que {
   constructor(tail) {
     const self  = this
-    tail        = onlyArray(tail)
+    tail        = arr(tail)
     self.length = tail.length
     self.h      = []   // "head"
     self.t      = tail // "tail"
@@ -400,7 +401,6 @@ export class Scheduler {
       self.tick()
     })
 
-    // "schedule tick"
     self.t = function scheduleTick() {
       if (!self.s) {
         self.s = true
@@ -410,7 +410,7 @@ export class Scheduler {
   }
 
   push(task, err, val) {
-    validate(task, isTask)
+    valid(task, isTask)
     const pending = this.p
     pending.push(task)
     pending.push(err)
@@ -469,7 +469,7 @@ function chooseAsync(fun) {
 /* eslint-enable no-restricted-globals */
 
 function each(vals, fun, ...args) {
-  if (isArray(vals)) {
+  if (isArr(vals)) {
     for (let i = 0; i < vals.length; i += 1) {
       fun(vals[i], i, ...args)
     }
@@ -491,47 +491,47 @@ function isNonTask(val) {
   return !isTask(val)
 }
 
-function isString(val) {
+function isStr(val) {
   return typeof val === 'string'
 }
 
-function isFunction(val) {
+function isFun(val) {
   return typeof val === 'function'
 }
 
-function isObject(val) {
+function isObj(val) {
   return val !== null && typeof val === 'object'
 }
 
 function isDict(val) {
-  if (!isObject(val)) return false
+  if (!isObj(val)) return false
   const proto = Object.getPrototypeOf(val)
   return proto === null || proto === Object.prototype
 }
 
-function isArray(val) {
-  return isInstance(val, Array)
+function isArr(val) {
+  return isInst(val, Array)
 }
 
 function isSeq(val) {
-  return isInstance(val, Que) || isArray(val)
+  return isInst(val, Que) || isArr(val)
 }
 
-function isInstance(val, Class) {
-  return (isObject(val) || isFunction(val)) && val instanceof Class
+function isInst(val, Class) {
+  return (isObj(val) || isFun(val)) && val instanceof Class
 }
 
 function isPromise(val) {
-  return isObject(val) && isFunction(val.then)
+  return isObj(val) && isFun(val.then)
 }
 
-function validate(val, test) {
+function valid(val, test) {
   if (!test(val)) throw Error(`expected ${show(val)} to satisfy test ${show(test)}`)
 }
 
 function show(val) {
-  if (isFunction(val) && val.name) return val.name
-  if (isArray(val) || isDict(val) || isString(val)) return JSON.stringify(val)
+  if (isFun(val) && val.name) return val.name
+  if (isArr(val) || isDict(val) || isStr(val)) return JSON.stringify(val)
   return `${val}`
 }
 
@@ -539,15 +539,15 @@ function bind(fun, ...args) {
   return fun.bind(undefined, ...args)
 }
 
-function onlyArray(val) {
+function arr(val) {
   if (val == null) return []
-  validate(val, isArray)
+  valid(val, isArr)
   return val
 }
 
-function onlyDict(val) {
+function dict(val) {
   if (val == null) return {}
-  validate(val, isDict)
+  valid(val, isDict)
   return val
 }
 

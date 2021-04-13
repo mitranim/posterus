@@ -79,8 +79,8 @@ t.runWithTimeout(async function test() {
   }()
 
   await async function mapRequiresFunction() {
-    await t.throws(() => {new p.Task().map()}, `satisfy test isFunction`)
-    await t.throws(() => {new p.Task().map({})}, `satisfy test isFunction`)
+    await t.throws(() => {new p.Task().map()}, `satisfy test isFun`)
+    await t.throws(() => {new p.Task().map({})}, `satisfy test isFun`)
   }()
 
   await async function mapThrowsAfterDone() {
@@ -254,7 +254,7 @@ t.runWithTimeout(async function test() {
     t.eq(args, ['test error', undefined])
   }()
 
-  void function fibers() {
+  await async function fibers() {
     function* inner(val) {return val}
 
     function* outer(val) {
@@ -314,6 +314,12 @@ t.runWithTimeout(async function test() {
       }
 
       t.throws(() => pf.fromIter(outer()).deinit(), 'test error')
+    }()
+
+    await async function fiberMapperThrow() {
+      const task = pf.fiberAsync(function*() {})()
+      task.mapVal(() => {throw Error('test error')})
+      await t.throws(() => {task.done()}, 'test error')
     }()
   }()
 

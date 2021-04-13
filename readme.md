@@ -1013,6 +1013,12 @@ task1.mapVal(console.log)                    // 20
 
 ## Changelog
 
+### 0.6.1
+
+Fixed an edge case where fibers would swallow exceptions thrown by mappers.
+
+Slightly reduced the unminified size of both files.
+
 ### 0.6.0
 
 **Revised fibers**: dramatically simpler, more efficient, fully synchronous by default. Async is opt-in. Breaking API changes:
