@@ -479,29 +479,18 @@ function each(vals, fun, ...args) {
   }
 }
 
-function deinitTasks(vals) {
-  each(vals, deinitTask)
-}
+function deinitTasks(vals) {each(vals, deinitTask)}
+function deinitTask(val) {if (isTask(val)) val.deinit()}
 
-function deinitTask(val) {
-  if (isTask(val)) val.deinit()
-}
-
-function isNonTask(val) {
-  return !isTask(val)
-}
-
-function isStr(val) {
-  return typeof val === 'string'
-}
-
-function isFun(val) {
-  return typeof val === 'function'
-}
-
-function isObj(val) {
-  return val !== null && typeof val === 'object'
-}
+function isNil(val)         {return val == null}
+function isStr(val)         {return typeof val === 'string'}
+function isFun(val)         {return typeof val === 'function'}
+function isObj(val)         {return val !== null && typeof val === 'object'}
+function isArr(val)         {return isInst(val, Array)}
+function isSeq(val)         {return isInst(val, Que) || isArr(val)}
+function isPromise(val)     {return isObj(val) && isFun(val.then)}
+function isNonTask(val)     {return !isTask(val)}
+function isInst(val, Class) {return (isObj(val) || isFun(val)) && val instanceof Class}
 
 function isDict(val) {
   if (!isObj(val)) return false
@@ -509,21 +498,9 @@ function isDict(val) {
   return proto === null || proto === Object.prototype
 }
 
-function isArr(val) {
-  return isInst(val, Array)
-}
-
-function isSeq(val) {
-  return isInst(val, Que) || isArr(val)
-}
-
-function isInst(val, Class) {
-  return (isObj(val) || isFun(val)) && val instanceof Class
-}
-
-function isPromise(val) {
-  return isObj(val) && isFun(val.then)
-}
+function arr(val)        {return isNil(val) ? [] : only(val, isArr)}
+function dict(val)       {return isNil(val) ? {} : only(val, isDict)}
+function only(val, test) {valid(val, test); return val}
 
 function valid(val, test) {
   if (!test(val)) throw Error(`expected ${show(val)} to satisfy test ${show(test)}`)
@@ -535,22 +512,6 @@ function show(val) {
   return `${val}`
 }
 
-function bind(fun, ...args) {
-  return fun.bind(undefined, ...args)
-}
+function bind(fun, ...args) {return fun.bind(undefined, ...args)}
 
-function arr(val) {
-  if (val == null) return []
-  valid(val, isArr)
-  return val
-}
-
-function dict(val) {
-  if (val == null) return {}
-  valid(val, isDict)
-  return val
-}
-
-function maybeThrow(err) {
-  if (err) throw err
-}
+function maybeThrow(err) {if (err) throw err}
